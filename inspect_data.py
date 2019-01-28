@@ -5,9 +5,11 @@ import matplotlib.pyplot as plt
 
 images = np.load('data/stim.npy')
 
+img = images[100]
+
 plt.figure(1)
 plt.clf()
-plt.imshow(images[5])
+plt.imshow(img)
 plt.draw()
 plt.show(block=False)
 
