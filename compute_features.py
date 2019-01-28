@@ -17,3 +17,14 @@ def kurt(image):
 
 def skw(image):
     return [skew(image,axis=None)]
+
+def min(image):
+    im = image[20:60,20:60,:]
+    return [np.min(im,axis=None)]
+
+def max(image):
+    im = image[20:60,20:60,:]
+    return [np.min(image,axis=None)]
+
+def rms(image): #root mean square
+    return [np.sqrt(np.mean(image**2))]
