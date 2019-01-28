@@ -3,9 +3,16 @@
 import numpy as np
 import pywt
 from scipy.stats import kurtosis, skew
+import cv2 as cv
 
 def raw_pixels(image):
     return image.flatten()
+
+def colorspace_image(image, colorspace='LAB'):
+    if colorspace == 'LAB':
+        return cv.cvtColor(image, cv.COLOR_RGB2LAB)
+    else:
+        return image
 
 def fourier_features(img):
     fft = np.fft.fft2(img)
@@ -43,3 +50,13 @@ def max(image):
 def rms(image): #root mean square
     return [np.sqrt(np.mean(image**2))]
 
+
+FEATURE_FUNCTIONS = {
+    'raw': raw_pixels,
+    'LAB': (colorspace, 'LAB'),
+    'fourier': fourier_features,
+    'gabor': (wavelet_features, 'sym4')
+}
+
+def get_all_features(image):
+    pass
