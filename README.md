@@ -8,6 +8,7 @@
   - Gaussian?
 - Laplace pyramid
 - Fourier transform
+- SIFT features
 - Statistical features
   - Average deviation of pixel values.
   - Average of pixel values.
@@ -20,12 +21,12 @@
 - PCA features
 
 # Models
-- Linear regression
+- Linear regression [normalize]
 - Regularized regressions
-  - Lasso
-  - Ridge
-  - Elastic Net
-- SVM
+  - Lasso [Params: alpha, tol, normalize, max_iter]
+  - Ridge [Params: alpha, tol, normalize]
+  - Elastic Net [Params: alpha, l1_ratio,max_iter,tol,normalize]
+- SVM [
 - Neural Nets
   - Small convolutional designer net
   - Small fully connected designer net
