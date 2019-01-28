@@ -4,6 +4,7 @@ import numpy as np
 import pywt
 from scipy.stats import kurtosis, skew
 import cv2 as cv
+from tqdm import trange
 
 def raw_pixels(image):
     return image.flatten()
@@ -68,7 +69,7 @@ def get_features_image(img):
 def compute_features():
     images = np.load('data/stim.npy')
     out = []
-    for i in range(images.shape[0]):
+    for i in trange(images.shape[0]):
         img = images[i]
         features = get_features_image(img)
         out.append(features)
