@@ -53,16 +53,16 @@ FEATURE_FUNCTIONS = {
     'stats': calc_stats
 }
 
-def get_features_image(image):
+def get_features_image(img):
     out = dict()
     for label, ffun in FEATURE_FUNCTIONS.items():
         if isinstance(ffun, tuple):
-            feature_fun =  ffun[0]
+            feature_fun = ffun[0]
             args = ffun[1:]
         else:
             feature_fun = ffun
             args = ()
-        out[label] =  feature_fun(img, *args)
+        out[label] = feature_fun(img, *args)
     return out
 
 def compute_features():
