@@ -8,7 +8,6 @@
   - Gaussian?
 - Laplace pyramid
 - Fourier transform
-- SIFT features
 - Statistical features
   - Average deviation of pixel values.
   - Average of pixel values.
