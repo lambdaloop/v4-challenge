@@ -10,10 +10,10 @@ import pandas as pd
 
 train = pd.read_csv('data/train.csv')
 
-# dd = np.load('data/features.npz')
-# features = dict()
-# for k in dd.keys():
-#     features[k] = dd[k]
+dd = np.load('data/features.npz')
+features = dict()
+for k in dd.keys():
+    features[k] = dd[k]
 
 models = [Lasso(alpha=10), Ridge(alpha=1000), ElasticNet(), RandomForestRegressor(max_depth=5), ExtraTreesRegressor()]
 
