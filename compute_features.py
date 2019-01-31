@@ -5,17 +5,20 @@ import pywt
 from scipy.stats import kurtosis, skew
 import cv2 as cv
 from tqdm import trange
+from collections import defaultdict
 
 def raw_pixels(image):
     return image.flatten()
 
 def colorspace_image(image, colorspace='LAB'):
     if colorspace == 'LAB':
-        return cv.cvtColor(image, cv.COLOR_RGB2LAB)
+        out = cv.cvtColor(image, cv.COLOR_RGB2LAB)
     elif colorspace == 'HSV':
-        return cv.cvtColor(image, cv.COLOR_RGB2HSV)
+        out = cv.cvtColor(image, cv.COLOR_RGB2HSV)
     else:
-        return image
+        out = image
+
+    return out.flatten()
 
 def fourier_features(img):
     fft = np.fft.fft2(img)
@@ -68,13 +71,16 @@ def get_features_image(img):
 
 def compute_features():
     images = np.load('data/stim.npy')
-    out = []
+    out = defaultdict(list)
     for i in trange(images.shape[0]):
         img = images[i]
         features = get_features_image(img)
-        out.append(features)
+        for k, v in features.items():
+            out[k].append(v)
+    for k,v in out.items():
+        out[k] = np.array(v)
     return out
 
 if __name__ == '__main__':
     features = compute_features()
-    np.savez_compressed('data/features.npz', features)
+    np.savez_compressed('data/features.npz', **features)
