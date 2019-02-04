@@ -6,6 +6,7 @@ from scipy.stats import kurtosis, skew
 import cv2 as cv
 from tqdm import trange
 from collections import defaultdict
+from bayes_opt import BayesianOptimization
 
 def raw_pixels(image):
     return image.flatten()
