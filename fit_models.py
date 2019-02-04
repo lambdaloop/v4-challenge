@@ -24,18 +24,14 @@ models = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
 print(features.keys())
 # ['raw', 'LAB', 'fourier', 'gabor', 'stats']
 
-# things to iterate over
-model = models[1]
-feature = 'stats'
-neuron_number = 0
-
 for neuron_number in trange(1, train.shape[1], ncols=80):
     # print('neuron number:', neuron_number)
     best_r2 = 0
 
     for modelnum in trange(len(models), ncols=80):
         # print('model num:', modelnum)
-
+        model = models[modelnum]
+        
         for feature in tqdm(features.keys(), ncols=80):
 
             ids_train = np.array(train['Id'])
