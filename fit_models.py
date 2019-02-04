@@ -90,10 +90,13 @@ for neuron_number in trange(1, train.shape[1], ncols=20):
             fun = train_models_fun(model, X_full, y_full)
             net_opt = BayesianOptimization(fun,model_params,verbose=True)
             net_opt.maximize(init_points=5,n_iter=30,acq="poi",xi=1e-1)
-
-            r2_test = net_opt.max['target'];
-            best_params = net_opt.max['params']
-            model.set_params(**best_params)
+            
+            try:
+                r2_test = net_opt.max['target'];
+                best_params = net_opt.max['params']
+                model.set_params(**best_params)
+            except:
+                r2_test = 0
             # print('feature: {}, r2: {:.3f}'.format(feature, r2_test))
             
             feature_dict[feature] = r2_test
