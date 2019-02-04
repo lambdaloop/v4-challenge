@@ -8,9 +8,10 @@ from sklearn.metrics.scorer import make_scorer
 from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
 from sklearn.decomposition import PCA
 import pandas as pd
-
+from tqdm import tqdm, trange
 
 train = pd.read_csv('data/train.csv')
+test = pd.read_csv('data/sub.csv')
 
 dd = np.load('data/features.npz')
 features = dict()
@@ -28,32 +29,49 @@ model = models[1]
 feature = 'stats'
 neuron_number = 0
 
-ids = np.array(train['Id'])
+for neuron_number in trange(1, train.shape[1], ncols=80):
+    # print('neuron number:', neuron_number)
+    best_r2 = 0
 
-X_full = features[feature][ids]
-# X_full = np.hstack([features['stats'][ids], features[feature][ids]])
-y_full = np.array(train.iloc[:, neuron_number])
+    for modelnum in trange(len(models), ncols=80):
+        # print('model num:', modelnum)
 
-good = ~np.isnan(y_full)
-X_full = X_full[good]
-y_full = y_full[good]
+        for feature in tqdm(features.keys(), ncols=80):
 
-good = np.std(X_full, axis=0) > 0
-X_full = X_full[:, good]
+            ids_train = np.array(train['Id'])
+            ids_test = np.array(test['Id'])
 
-pca = PCA(n_components=min(X_full.shape[1], 100))
-X_full = pca.fit_transform(X_full)
+            X_test = features[feature][ids_test]
+            X_full = features[feature][ids_train]
+            # X_full = np.hstack([features['stats'][ids_train],
+            #                     features[feature][ids_train]])
+            y_full = np.array(train.iloc[:, neuron_number])
 
-scores = cross_val_score(model, X_full, y_full,
-                         cv=ShuffleSplit(n_splits=3, test_size=0.1, random_state=42),
-                         scoring=make_scorer(r2_score))
-print(np.mean(scores))
+            good = ~np.isnan(y_full)
+            X_full = X_full[good]
+            y_full = y_full[good]
 
-# X_train, X_test, y_train, y_test = train_test_split(
-#     X_full, y_full, test_size=0.1)
+            good = np.std(X_full, axis=0) > 0
+            X_full = X_full[:, good]
+            X_test = X_test[:, good]
 
-# model.fit(X_train, y_train)
-# y_pred = model.predict(X_test)
-# r2 = r2_score(y_test, y_pred)
+            X_all = np.vstack([X_full, X_test])
+            pca = PCA(n_components=min(X_full.shape[1], 100))
+            pca.fit(X_all)
+            X_full = pca.transform(X_full)
+            X_test = pca.transform(X_test)
 
-# print(r2)
+            scores = cross_val_score(model, X_full, y_full,
+                                     cv=ShuffleSplit(n_splits=3, test_size=0.1, random_state=42),
+                                     scoring=make_scorer(r2_score))
+            r2_test = np.mean(scores)
+
+            # print('feature: {}, r2: {:.3f}'.format(feature, r2_test))
+
+            if r2_test > best_r2:
+                model.fit(X_full, y_full)
+                out = model.predict(X_test)
+                test.iloc[:, neuron_number] = out
+                best_r2 = r2_test
+
+test.to_csv('data/output.csv', index=False)
