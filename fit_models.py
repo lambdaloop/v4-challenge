@@ -32,7 +32,7 @@ all_params = [{'alpha': (1e-4, 1e4)}, {'alpha': (1e-4, 1e4)}, {'alpha': (1e-4, 1
 
 print(features.keys())
 # ['raw', 'LAB', 'fourier', 'gabor', 'stats']
-m_now = 0
+
 
 def train_models_fun(model, X_full, y_full):
     def test_model(**params):
@@ -107,8 +107,8 @@ for neuron_number in trange(1, train.shape[1], ncols=20):
                 test.iloc[:, neuron_number] = out
                 best_r2 = r2_test
                 
-        model_dict[m_names[m_now]] = feature_dict
-        m_now += 1
+        model_dict[m_names[modelnum]] = feature_dict
+       
     
     neuron_dict[neuron_number] = model_dict
 
