@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import warnings
 
 import numpy as np
 from sklearn.linear_model import Lasso, Ridge, ElasticNet
@@ -10,6 +11,8 @@ from sklearn.decomposition import PCA
 import pandas as pd
 from bayes_opt import BayesianOptimization
 from tqdm import tqdm, trange
+
+warnings.simplefilter(action='ignore',category=FutureWarning)
 
 train = pd.read_csv('data/train.csv')
 test = pd.read_csv('data/sub.csv')
@@ -77,7 +80,7 @@ for neuron_number in trange(1, train.shape[1], ncols=80):
 
             fun = train_models_fun(model, X_full, y_full)
             net_opt = BayesianOptimization(fun,model_params,verbose=False)
-            net_opt.maximize(init_points=5,n_iter=25,acq="ei",xi=1e-4)
+            net_opt.maximize(init_points=5,n_iter=25,acq="ei",xi=1e-1)
 
             r2_test = net_opt.max['target']
             best_params = net_opt.max['params']
