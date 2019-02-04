@@ -88,8 +88,8 @@ for neuron_number in trange(1, train.shape[1], ncols=20):
             X_test = pca.transform(X_test)
 
             fun = train_models_fun(model, X_full, y_full)
-            net_opt = BayesianOptimization(fun,model_params,verbose=True)
-            net_opt.maximize(init_points=5,n_iter=30,acq="poi",xi=1e-1)
+            net_opt = BayesianOptimization(fun,model_params,verbose=False)
+            net_opt.maximize(n_iter=40,acq="poi",xi=1e-1)
             
             try:
                 r2_test = net_opt.max['target'];
