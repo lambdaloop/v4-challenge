@@ -8,7 +8,7 @@ from sklearn.metrics.scorer import make_scorer
 from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
 from sklearn.decomposition import PCA
 import pandas as pd
-from bayes_opt import BayesianOptimization 
+from bayes_opt import BayesianOptimization
 from tqdm import tqdm, trange
 
 train = pd.read_csv('data/train.csv')
@@ -38,20 +38,18 @@ def train_models_fun(model, X_full, y_full):
         r2_test = np.mean(scores)
         return r2_test
     return test_model
-    
+
+
 for neuron_number in trange(1, train.shape[1], ncols=80):
     # print('neuron number:', neuron_number)
     best_r2 = 0
-    
-    
+
     for modelnum in trange(len(models), ncols=80):
         # print('model num:', modelnum)
         model = models[modelnum]
-        model_params= all_params[modelnum]
+        model_params = all_params[modelnum]
 
         for feature in tqdm(features.keys(), ncols=80):
-            
-            net_opt = BayesianOptimization(fit_data,{'alpha': (1e-2, 1e6)})    
 
             ids_train = np.array(train['Id'])
             ids_test = np.array(test['Id'])
@@ -77,12 +75,11 @@ for neuron_number in trange(1, train.shape[1], ncols=80):
             X_test = pca.transform(X_test)
 
             fun = train_models_fun(model, X_full, y_full)
-            net_opt = BayesianOptimization(fun,model_params,verbose=1)
+            net_opt = BayesianOptimization(fun,model_params,verbose=False)
             net_opt.maximize(init_points=5,n_iter=25,acq="ei",xi=1e-4)
-            
-            print(net_opt.res)
 
-            best_params = net_opt.res['max']['max_params']
+            r2_test = net_opt.max['target']
+            best_params = net_opt.max['params']
             model.set_params(**best_params)
             # print('feature: {}, r2: {:.3f}'.format(feature, r2_test))
 
