@@ -25,13 +25,14 @@ for k in dd.keys():
 models = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
           RandomForestRegressor(max_depth=7, n_estimators=100),
           ExtraTreesRegressor(max_depth=7, n_estimators=100)]
-
+m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
 all_params = [{'alpha': (1e-4, 1e4)}, {'alpha': (1e-4, 1e4)}, {'alpha': (1e-4, 1e4)},
               {'max_depth': (3, 15)}, {'max_depth': (3, 15)}]
 
 
 print(features.keys())
 # ['raw', 'LAB', 'fourier', 'gabor', 'stats']
+m_now = 0
 
 def train_models_fun(model, X_full, y_full):
     def test_model(**params):
@@ -90,7 +91,7 @@ for neuron_number in trange(1, train.shape[1], ncols=20):
             net_opt = BayesianOptimization(fun,model_params,verbose=True)
             net_opt.maximize(init_points=5,n_iter=30,acq="poi",xi=1e-1)
 
-            r2_test = net_opt.max['target']; import pdb; pdb.set_trace()
+            r2_test = net_opt.max['target'];
             best_params = net_opt.max['params']
             model.set_params(**best_params)
             # print('feature: {}, r2: {:.3f}'.format(feature, r2_test))
@@ -103,14 +104,8 @@ for neuron_number in trange(1, train.shape[1], ncols=20):
                 test.iloc[:, neuron_number] = out
                 best_r2 = r2_test
                 
-        model_name_now = ''
-        for ccc in model.__dict__():
-            if ccc.isalpha():
-                model_name_now += ccc
-            else:
-                break
-        
-        model_dict[model_name_now] = feature_dict
+        model_dict[m_names[m_now]] = feature_dict
+        m_now += 1
     
     neuron_dict[neuron_number] = model_dict
 
