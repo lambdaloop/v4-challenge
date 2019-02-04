@@ -31,7 +31,7 @@ for neuron_number in trange(1, train.shape[1], ncols=80):
     for modelnum in trange(len(models), ncols=80):
         # print('model num:', modelnum)
         model = models[modelnum]
-        
+
         for feature in tqdm(features.keys(), ncols=80):
 
             ids_train = np.array(train['Id'])
