@@ -20,7 +20,8 @@ for k in dd.keys():
     features[k] = dd[k]
 
 models = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
-          RandomForestRegressor(max_depth=7), ExtraTreesRegressor()]
+          RandomForestRegressor(max_depth=7, n_estimators=10),
+          ExtraTreesRegressor(max_depth=7, n_estimators=10)]
 
 all_params = [{'alpha': (0.01, 1e6)}, {'alpha': (0.01, 1e6)}, {'alpha': (0.01, 1e6)},
               {'max_depth': (3, 15)}, {'max_depth': (3, 15)}]
