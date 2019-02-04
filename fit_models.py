@@ -12,22 +12,26 @@ import pandas as pd
 
 train = pd.read_csv('data/train.csv')
 
-# dd = np.load('data/features.npz')
-# features = dict()
-# for k in dd.keys():
-#     features[k] = dd[k]
+dd = np.load('data/features.npz')
+features = dict()
+for k in dd.keys():
+    features[k] = dd[k]
 
-models = [Lasso(alpha=1000000), Ridge(alpha=100), ElasticNet(), RandomForestRegressor(max_depth=7), ExtraTreesRegressor()]
+models = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
+          RandomForestRegressor(max_depth=7), ExtraTreesRegressor()]
+
+print(features.keys())
+# ['raw', 'LAB', 'fourier', 'gabor', 'stats']
 
 # things to iterate over
 model = models[1]
-feature = 'gabor'
+feature = 'stats'
 neuron_number = 0
 
 ids = np.array(train['Id'])
 
-# X_full = features[feature][ids]
-X_full = np.hstack([features['stats'][ids], features[feature][ids]])
+X_full = features[feature][ids]
+# X_full = np.hstack([features['stats'][ids], features[feature][ids]])
 y_full = np.array(train.iloc[:, neuron_number])
 
 good = ~np.isnan(y_full)
@@ -37,7 +41,7 @@ y_full = y_full[good]
 good = np.std(X_full, axis=0) > 0
 X_full = X_full[:, good]
 
-pca = PCA(n_components=min(X_full.shape[1], 10))
+pca = PCA(n_components=min(X_full.shape[1], 100))
 X_full = pca.fit_transform(X_full)
 
 scores = cross_val_score(model, X_full, y_full,
