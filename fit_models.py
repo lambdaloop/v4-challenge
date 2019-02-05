@@ -26,7 +26,7 @@ models = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
           RandomForestRegressor(max_depth=7, n_estimators=100),
           ExtraTreesRegressor(max_depth=7, n_estimators=100)]
 m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
-all_params = [{'alpha': (1e-4, 1e4)}, {'alpha': (1e-4, 1e4)}, {'alpha': (1e-4, 1e4)},
+all_params = [{'alpha': (1e-3, 1e3)}, {'alpha': (1e-3, 1e3)}, {'alpha': (1e-3, 1e3)},
               {'max_depth': (3, 15)}, {'max_depth': (3, 15)}]
 
 
@@ -97,6 +97,7 @@ for neuron_number in trange(1, train.shape[1], ncols=20):
                 model.set_params(**best_params)
             except:
                 r2_test = 0
+                print('Val error')
             # print('feature: {}, r2: {:.3f}'.format(feature, r2_test))
             
             feature_dict[feature] = r2_test
@@ -106,11 +107,15 @@ for neuron_number in trange(1, train.shape[1], ncols=20):
                 out = model.predict(X_test)
                 test.iloc[:, neuron_number] = out
                 best_r2 = r2_test
-                
-        model_dict[m_names[modelnum]] = feature_dict
+
+        z = feature_dict.copy()
+        z.update(best_params)
+        model_dict[m_names[modelnum]] = z
+        
        
     
     neuron_dict[neuron_number] = model_dict
 
-all_results = pd.concat(neuron_dict)                
 test.to_csv('data/output.csv', index=False)
+all_results = pd.DataFrame.from_dict(neuron_dict)
+all_results.to_pickle('model_perf_and_params.pkl')
