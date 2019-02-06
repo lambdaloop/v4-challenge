@@ -26,7 +26,7 @@ models = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
           RandomForestRegressor(max_depth=7, n_estimators=100),
           ExtraTreesRegressor(max_depth=7, n_estimators=100)]
 m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
-all_params = [{'alpha': (1e-3, 1e3)}, {'alpha': (1e-3, 1e3)}, {'alpha': (1e-3, 1e3)},
+all_params = [{'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)},
               {'max_depth': (3, 15)}, {'max_depth': (3, 15)}]
 
 
@@ -52,17 +52,18 @@ for neuron_number in trange(1, train.shape[1], ncols=20):
     best_r2 = 0
 
 
-
+    model_dict = {}
     for modelnum in trange(len(models), ncols=20):
         
-        model_dict = {}
+        
         # print('model num:', modelnum)
         model = models[modelnum]
         model_params = all_params[modelnum]
+        
+        feature_dict = {}
 
         for feature in tqdm(features.keys(), ncols=20):
             
-            feature_dict = {}
             
             ids_train = np.array(train['Id'])
             ids_test = np.array(test['Id'])
