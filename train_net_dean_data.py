@@ -2,7 +2,7 @@
 """
 Created on Wed Feb  6 10:47:54 2019
 
-@author: Tony Bigelow
+@author: Tony Bigelow>
 """
 #%%
 
@@ -37,16 +37,22 @@ warnings.simplefilter(action='ignore',category=FutureWarning)
 lasso_model = Lasso(alpha=1)
 l_params = {'alpha': (1e-2,1e2)}
 
+df_now = pd.read_csv('./data/train.csv')
+im_now = np.load('./data/stim.npy')
+im_now = im_now[50:,...]#eliminate test images for training
+
+bad_idcs = pd.isnull(df_now).any(1).nonzero()[0] #return all rows with a nan value
+df_now = df_now.drop(df_now.index[bad_idcs])
+im_now = np.delete(im_now,bad_idcs,axis=0)
 
 #%%
 class v4_dataset(Dataset):
     
-    def __init__(self,transform):
+    def __init__(self,df,ims,transform):
         
-        self.resp_frame = pd.read_csv('./data/train.csv') 
-        self.resp_frame = self.resp_frame.dropna()
+        self.resp_frame = df
         self.transform = transform
-        self.ims = np.load('./data/stim.npy')
+        self.ims = ims
         
     def __len__(self):
         return len(self.resp_frame)
@@ -116,11 +122,13 @@ def train_net(lr,mom):
             
             var.append(np.corrcoef(responses.cpu().numpy(),output.cpu().numpy())[0,1]**2)
     var = array(var)
-    
+    print('Mean: '+str(np.mean(var)))
     return np.mean(var)
 
 
-net_opt= BayesianOptimization(train_net,{'lr':(1e-6,1e-2), 'mom':(0.3,0.99)},verbose=1)
+net_opt= BayesianOptimization(train_net,{'lr':(1e-6,1e-2), 'mom':(0.3,0.99)},verbose=True)
 net_opt.maximize(n_iter=100)
 
-print(net_opt.res['max'])
+import pdb; pdb.set_trace()
+
+print(net_opt.max['params'])
