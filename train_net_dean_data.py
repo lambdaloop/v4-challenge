@@ -30,7 +30,7 @@ import os
 from PIL import Image
 import pandas as pd
 
-os.chdir(r'C:\Users\Tony Bigelow\Desktop\Hackathon\v4-challenge')
+#os.chdir(r'C:\Users\Tony Bigelow\Desktop\Hackathon\v4-challenge')
 
 warnings.simplefilter(action='ignore',category=FutureWarning)
 
@@ -70,7 +70,7 @@ all_idx = np.arange(len(dtset)) #no. conditions w/ full data
 trainidx,testidx = train_test_split(
         all_idx,test_size=0.1,random_state=42)
 
-device = torch.device("cuda:0" if torch.cuda_is_availble() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def train_net(lr,mom):
     net = models.alexnet(pretrained=True)
@@ -109,10 +109,12 @@ def train_net(lr,mom):
         for idx in testidx:
             inputs, responses = dtset[idx]['image'],dtset[idx]['responses']
             
+            responses = torch.from_numpy(responses);
+
             inputs, responses = inputs.to(device), responses.to(device)
             output = net(inputs.unsqueeze(0))
             
-            var.append(np.corrcoef(responses,output.data.numpy())[0,1]**2)
+            var.append(np.corrcoef(responses.cpu().numpy(),output.cpu().numpy())[0,1]**2)
     var = array(var)
     
     return np.mean(var)
