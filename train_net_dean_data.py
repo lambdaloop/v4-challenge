@@ -70,6 +70,8 @@ all_idx = np.arange(len(dtset)) #no. conditions w/ full data
 trainidx,testidx = train_test_split(
         all_idx,test_size=0.1,random_state=42)
 
+device = torch.device("cuda:0" if torch.cuda_is_availble() else "cpu")
+
 def train_net(lr,mom):
     net = models.alexnet(pretrained=True)
     num_ft = net.classifier[6].in_features
@@ -81,7 +83,8 @@ def train_net(lr,mom):
     for param in net.classifier[6].parameters():
         param.requires_grad = True
     
-    criterion = nn.MSELoss()
+    net.to(device)
+    criterion = nn.MSELoss().cuda()
     optimizer = optim.SGD(net.parameters(),lr=lr,momentum=mom)
     
     for epoch in range(5):
@@ -91,8 +94,12 @@ def train_net(lr,mom):
             #import pdb; pdb.set_trace()
             optimizer.zero_grad()
             
+            responses = torch.from_numpy(responses); responses.requires_grad=True
+            inputs, responses = inputs.to(device), responses.to(device)
+            
             outputs = net(inputs.unsqueeze(0))
-            loss = criterion(outputs.data.numpy(),responses)
+            
+            loss = criterion(outputs.data.double(),responses)
             loss.backward()
             optimizer.step()
             
@@ -100,17 +107,18 @@ def train_net(lr,mom):
     var = []
     with torch.no_grad():
         for idx in testidx:
-            inputs, responses = dtset[idx]['images'],dtset[idx]['responses']
+            inputs, responses = dtset[idx]['image'],dtset[idx]['responses']
             
+            inputs, responses = inputs.to(device), responses.to(device)
             output = net(inputs.unsqueeze(0))
             
-            var.append(np.corrcoef(responses,output.data)[0,1]**2)
+            var.append(np.corrcoef(responses,output.data.numpy())[0,1]**2)
     var = array(var)
     
     return np.mean(var)
 
 
 net_opt= BayesianOptimization(train_net,{'lr':(1e-6,1e-2), 'mom':(0.3,0.99)},verbose=1)
-net_opt.maximize(n_iter=200)
+net_opt.maximize(n_iter=100)
 
 print(net_opt.res['max'])
