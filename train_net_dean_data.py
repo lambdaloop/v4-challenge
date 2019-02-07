@@ -45,6 +45,8 @@ bad_idcs = pd.isnull(df_now).any(1).nonzero()[0] #return all rows with a nan val
 df_now = df_now.drop(df_now.index[bad_idcs])
 im_now = np.delete(im_now,bad_idcs,axis=0)
 
+test = pd.read_csv('data/sub.csv')
+
 #%%
 class v4_dataset(Dataset):
     
@@ -74,11 +76,11 @@ dtset = v4_dataset(df_now,im_now,t)
 
 all_idx = np.arange(len(dtset)) #no. conditions w/ full data
 trainidx,testidx = train_test_split(
-        all_idx,test_size=0.1,random_state=42)
+        all_idx,test_size=0.2,random_state=42)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-def train_net(lr,mom):
+def train_net(lr,mom,ep):
     net = models.alexnet(pretrained=True)
     num_ft = net.classifier[6].in_features
     net.classifier[6] = nn.Linear(num_ft,18)
@@ -93,7 +95,7 @@ def train_net(lr,mom):
     criterion = nn.MSELoss().cuda()
     optimizer = optim.SGD(net.parameters(),lr=lr,momentum=mom)
     
-    for epoch in range(5):
+    for epoch in range(ep):
         
         for idx in trainidx:
             inputs, responses = dtset[idx]['image'],dtset[idx]['responses']
@@ -126,9 +128,51 @@ def train_net(lr,mom):
     return np.mean(var)
 
 
-net_opt= BayesianOptimization(train_net,{'lr':(1e-6,1e-2), 'mom':(0.3,0.99)},verbose=True)
-net_opt.maximize(n_iter=100)
+net_opt= BayesianOptimization(train_net,{'lr':(1e-6,1e-2), 'mom':(0.3,0.99),'ep':(2,10)},verbose=True)
+net_opt.maximize(n_iter=150)
 
-import pdb; pdb.set_trace()
+best_params = net_opt.max['params']
 
-print(net_opt.max['params'])
+net = models.alexnet(pretrained=True)
+num_ft = net.classifier[6].in_features
+net.classifier[6] = nn.Linear(num_ft,18)
+
+for param in net.parameters():
+    param.requires_grad=False
+    
+for param in net.classifier[6].parameters():
+    param.requires_grad = True
+
+net.to(device)
+criterion = nn.MSELoss()
+optimizer = optim.SGD(net.parameters(),lr=best_params['lr'],momentum=best_params['mom'])
+
+for epoch in range(best_params['ep']):
+    
+    for idx in trainidx:
+        inputs, responses = dtset[idx]['image'],dtset[idx]['responses']
+        #import pdb; pdb.set_trace()
+        optimizer.zero_grad()        
+        
+        responses = torch.from_numpy(responses); responses.requires_grad=True
+        
+        outputs = net(inputs.unsqueeze(0))
+        
+        loss = criterion(outputs.data.double(),responses)
+        loss.backward()
+        optimizer.step()
+            
+
+net.eval()
+with torch.no_grad():
+    
+    for idx in range(50):
+        
+        inputs, responses = dtset[idx]['image'],dtset[idx]['responses']
+        responses = torch.from_numpy(responses);
+        output = net(inputs.unsqueeze(0)); output = output.numpy()
+        
+        test.iloc[idx,:] = output
+        
+        
+test.to_csv('data/output.csv', index=False)
