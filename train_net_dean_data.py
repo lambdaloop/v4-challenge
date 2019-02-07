@@ -70,7 +70,7 @@ class v4_dataset(Dataset):
 
 
 t = transforms.Compose([transforms.Resize(224),transforms.ToTensor()])
-dtset = v4_dataset(t)
+dtset = v4_dataset(df_now,im_now,t)
 
 all_idx = np.arange(len(dtset)) #no. conditions w/ full data
 trainidx,testidx = train_test_split(
