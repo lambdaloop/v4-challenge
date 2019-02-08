@@ -96,7 +96,7 @@ def train_net(lr,mom):
     criterion = nn.MSELoss()
     optimizer = optim.SGD(net.parameters(),lr=lr,momentum=mom)
     
-    for epoch in range(5):
+    for epoch in range(1):
         
         for idx in trainidx:
             inputs, responses = dtset[idx]['image'],dtset[idx]['responses']
@@ -129,8 +129,8 @@ def train_net(lr,mom):
     return np.mean(var)
 
 
-net_opt= BayesianOptimization(train_net,{'lr':(1e-6,1e-2), 'mom':(0.3,0.99)},verbose=True)
-net_opt.maximize(n_iter=100)
+net_opt= BayesianOptimization(train_net,{'lr':(1e-4,1e-1), 'mom':(0.5,0.99)},verbose=True)
+net_opt.maximize(n_iter=30,acq="poi",xi=1e-1)
 
 best_params = net_opt.max['params']
 
@@ -148,7 +148,7 @@ for param in net.classifier[6].parameters():
 criterion = nn.MSELoss()
 optimizer = optim.SGD(net.parameters(),lr=best_params['lr'],momentum=best_params['mom'])
 
-for epoch in range(5):
+for epoch in range(1):
     
     for idx in trainidx:
         inputs, responses = dtset[idx]['image'],dtset[idx]['responses']
