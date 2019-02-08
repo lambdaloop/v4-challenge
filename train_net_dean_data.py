@@ -39,6 +39,7 @@ l_params = {'alpha': (1e-2,1e2)}
 
 df_now = pd.read_csv('./data/train.csv')
 im_now = np.load('./data/stim.npy')
+test_ims = im_now[:50,...]
 im_now = im_now[50:,...]#eliminate test images for training
 
 bad_idcs = pd.isnull(df_now).any(1).nonzero()[0] #return all rows with a nan value
@@ -91,8 +92,8 @@ def train_net(lr,mom):
     for param in net.classifier[6].parameters():
         param.requires_grad = True
     
-    net.to(device)
-    criterion = nn.MSELoss().cuda()
+    
+    criterion = nn.MSELoss()
     optimizer = optim.SGD(net.parameters(),lr=lr,momentum=mom)
     
     for epoch in range(5):
@@ -103,7 +104,7 @@ def train_net(lr,mom):
             optimizer.zero_grad()
             
             responses = torch.from_numpy(responses); responses.requires_grad=True
-            inputs, responses = inputs.to(device), responses.to(device)
+            #inputs, responses = inputs.to(device), responses.to(device)
             
             outputs = net(inputs.unsqueeze(0))
             
@@ -119,17 +120,17 @@ def train_net(lr,mom):
             
             responses = torch.from_numpy(responses);
 
-            inputs, responses = inputs.to(device), responses.to(device)
+            #inputs, responses = inputs.to(device), responses.to(device)
             output = net(inputs.unsqueeze(0))
             
-            var.append(np.corrcoef(responses.cpu().numpy(),output.cpu().numpy())[0,1]**2)
+            var.append(np.corrcoef(responses.numpy(),output.numpy())[0,1]**2)
     var = array(var)
     print('Mean: '+str(np.mean(var)))
     return np.mean(var)
 
 
 net_opt= BayesianOptimization(train_net,{'lr':(1e-6,1e-2), 'mom':(0.3,0.99)},verbose=True)
-net_opt.maximize(n_iter=150)
+net_opt.maximize(n_iter=100)
 
 best_params = net_opt.max['params']
 
@@ -143,7 +144,7 @@ for param in net.parameters():
 for param in net.classifier[6].parameters():
     param.requires_grad = True
 
-net.to(device)
+
 criterion = nn.MSELoss()
 optimizer = optim.SGD(net.parameters(),lr=best_params['lr'],momentum=best_params['mom'])
 
@@ -166,13 +167,13 @@ for epoch in range(5):
 net.eval()
 with torch.no_grad():
     
-    for idx in range(50):
-        
-        inputs, responses = dtset[idx]['image'],dtset[idx]['responses']
-        responses = torch.from_numpy(responses);
-        output = net(inputs.unsqueeze(0)); output = output.numpy()
-        
-        test.iloc[idx,:] = output
+    for idx in range(len(test_ims)):
+    
+        input_now = Image.fromarray(np.uint8(test_ims[idx,:,:,:]*255))
+        input_now = t(input_now)
+        output = net(input_now.unsqueeze(0)); output = output.numpy()
+	
+        test.iloc[idx,1:] = output.T.squeeze(1) #change from 18,1 to 18, 
         
         
 test.to_csv('data/output.csv', index=False)
