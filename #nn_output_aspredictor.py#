@@ -28,7 +28,6 @@ from torch.utils.data import Dataset, DataLoader
 import os
 from PIL import Image
 import pandas as pd
-from collections import namedtuple
 
 #os.chdir(r'C:\Users\Tony Bigelow\Desktop\Hackathon\v4-challenge')
 
@@ -74,23 +73,7 @@ t = transforms.Compose([transforms.Resize(224), transforms.ToTensor()])
 net = models.alexnet(pretrained=True)
 
 dtset = v4_dataset(df_now, im_now,t)
-ld_now = DataLoader(v4_dataset,batch_size=4,num_workers=4)
 
-class Alexnet(torch.nn.Module):
-    def __init__(self):
-        super(Alexnet,self).__init__()
-        features = list(models.alexnet(pretrained=True).features)
-        self.features = nn.ModuleList(features).eval()
-        
-    def forward(self,x):
-        results = []
-        for ii, model in enumerate(self.features):
-            x = model(x)
-            results.append(x)
-        an_outputs = namedtuple("AlexNetOutputs",['conv1','relu1','maxpool1',
-                                                  'conv2','relu2','maxpool2',
-                                                  'conv3','relu3','conv4',
-                                                  'relu4','conv5','relu5','maxpool5'])
-        return an_outputs(*results)
-
+for i in range(len(net.features)):
+    
     
