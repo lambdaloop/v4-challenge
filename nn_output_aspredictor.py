@@ -16,26 +16,25 @@ import warnings
 import numpy as np
 from numpy import array 
 from bayes_opt import BayesianOptimization
-from sklearn.linear_model import Lasso
-from sklearn.model_selection import train_test_split, cross_val_score, ShuffleSplit
+from sklearn.linear_model import Lasso, Ridge, ElasticNet
+from sklearn.model_selection import train_test_split,cross_val_score, ShuffleSplit
 from sklearn.metrics import r2_score
 from sklearn.metrics.scorer import make_scorer
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import datasets, models, transforms
+from torchvision import models, transforms
 from torch.utils.data import Dataset, DataLoader
-import os
 from PIL import Image
-import pandas as pd
 from collections import namedtuple
+from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
+from tqdm import tqdm, trange
 
 #os.chdir(r'C:\Users\Tony Bigelow\Desktop\Hackathon\v4-challenge')
 
 warnings.simplefilter(action='ignore',category=FutureWarning)
 
-lasso_model = Lasso(alpha=1)
-l_params = {'alpha': (1e-2,1e2)}
+#%% organize data
 
 df_now = pd.read_csv('./data/train.csv')
 im_now = np.load('./data/stim.npy')
@@ -48,7 +47,6 @@ im_now = np.delete(im_now,bad_idcs,axis=0)
 
 test = pd.read_csv('data/sub.csv')
 
-#%%
 class v4_dataset(Dataset):
     
     def __init__(self,df,ims,transform):
@@ -71,10 +69,12 @@ class v4_dataset(Dataset):
         return sample
 
 t = transforms.Compose([transforms.Resize(224), transforms.ToTensor()])
-net = models.alexnet(pretrained=True)
 
 dtset = v4_dataset(df_now, im_now,t)
-ld_now = DataLoader(v4_dataset,batch_size=4,num_workers=4)
+dtloader = DataLoader(v4_dataset,batch_size=4,num_workers=4)
+#%% set up models
+
+#returns a tuple with outputs at each layer in alexnet (minus fc layers)
 
 class Alexnet(torch.nn.Module):
     def __init__(self):
@@ -93,4 +93,38 @@ class Alexnet(torch.nn.Module):
                                                   'relu4','conv5','relu5','maxpool5'])
         return an_outputs(*results)
 
+mods = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
+          RandomForestRegressor(max_depth=7, n_estimators=100),
+          ExtraTreesRegressor(max_depth=7, n_estimators=100)] 
+m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
+all_params = [{'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)},
+              {'max_depth': (3, 15)}, {'max_depth': (3, 15)}]
+
+def train_models_fun(model, X_full, y_full):
+    def test_model(**params):
+        model.set_params(**params)
+        scores = cross_val_score(model, X_full, y_full,
+                                 cv=ShuffleSplit(n_splits=1, test_size=0.1, random_state=42),
+                                 scoring=make_scorer(r2_score))
+        r2_test = np.mean(scores)
+        return r2_test
+    return test_model
+
+
+#%% Instantiate model, get output for images
     
+net=Alexnet() 
+ft_vec = []
+
+
+#%% Now fit the data
+n_dict = {}
+for nnn in trange(1,df_now.shape[1],ncols=20):
+    best_r2 = 0
+    
+    model_dict = {}
+    for modelnum in range(len(mods),ncol=20):
+        
+        model = mods[modelnum]
+        model_params = all_params[modelnum]
+        
