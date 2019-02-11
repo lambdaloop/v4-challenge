@@ -93,7 +93,7 @@ def train_net(lr,mom):
         param.requires_grad = True
     
     
-    criterion = nn.MSELoss()
+    criterion = nn.SmoothL1Loss()
     optimizer = optim.SGD(net.parameters(),lr=lr,momentum=mom)
     
     for epoch in range(1):
@@ -178,8 +178,6 @@ with torch.no_grad():
 var = array(var)
 print('Mean: '+str(np.mean(var)))
 
-if var < 0.2:
-    raise Exception('Booooo')
     
 for idx in range(len(test_ims)):
 

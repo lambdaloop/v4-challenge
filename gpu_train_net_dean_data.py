@@ -101,10 +101,10 @@ def train_net(lr,mom):
         param.requires_grad = True
     
     
-    criterion = nn.MSELoss().cuda()
+    criterion = nn.SmoothL1Loss().cuda()
     optimizer = optim.SGD(net.parameters(),lr=lr,momentum=mom)
     
-    for epoch in range(1):
+    for epoch in range(5):
         
         for idx in trainidx:
             inputs, responses = dtset[idx]['image'],dtset[idx]['responses']
@@ -138,8 +138,8 @@ def train_net(lr,mom):
     return np.mean(var)
 
 
-net_opt= BayesianOptimization(train_net,{'lr':(1e-4,1e2), 'mom':(0.5,0.99)},verbose=True)
-net_opt.maximize(n_iter=30,acq="poi",xi=1e-1)
+net_opt= BayesianOptimization(train_net,{'lr':(1e-5,1e1), 'mom':(0.4,0.99)},verbose=False)
+net_opt.maximize(n_iter=40,acq="poi",xi=1e-1)
 
 best_params = net_opt.max['params']
 
@@ -156,10 +156,10 @@ for param in net.classifier[6].parameters():
     param.requires_grad = True
 
 
-criterion = nn.MSELoss()
+criterion = nn.SmoothL1Loss()
 optimizer = optim.SGD(net.parameters(),lr=best_params['lr'],momentum=best_params['mom'])
 
-for epoch in range(1):
+for epoch in range(5):
     
     for idx in trainidx:
         inputs, responses = dtset[idx]['image'],dtset[idx]['responses']
