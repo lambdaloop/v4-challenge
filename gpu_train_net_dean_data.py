@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 """
+Created on Thu Feb  7 23:01:41 2019
+
+@author: Tony Bigelow
+"""
+
+# -*- coding: utf-8 -*-
+"""
 Created on Wed Feb  6 10:47:54 2019
 
 @author: Tony Bigelow>
@@ -80,12 +87,13 @@ trainidx,testidx = train_test_split(
         all_idx,test_size=0.2,random_state=42)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-dataloader = DataLoader(dtset,batch_size=4,num_workers=4)
+
 def train_net(lr,mom):
     net = models.alexnet(pretrained=True)
     num_ft = net.classifier[6].in_features
     net.classifier[6] = nn.Linear(num_ft,18)
-
+    net.to(device)
+    
     for param in net.parameters():
         param.requires_grad=False
         
@@ -93,7 +101,7 @@ def train_net(lr,mom):
         param.requires_grad = True
     
     
-    criterion = nn.MSELoss()
+    criterion = nn.MSELoss().cuda()
     optimizer = optim.SGD(net.parameters(),lr=lr,momentum=mom)
     
     for epoch in range(1):
@@ -104,7 +112,7 @@ def train_net(lr,mom):
             optimizer.zero_grad()
             
             responses = torch.from_numpy(responses); responses.requires_grad=True
-            #inputs, responses = inputs.to(device), responses.to(device)
+            inputs, responses = inputs.to(device), responses.to(device)
             
             outputs = net(inputs.unsqueeze(0))
             
@@ -120,10 +128,11 @@ def train_net(lr,mom):
             
             responses = torch.from_numpy(responses);
 
-            #inputs, responses = inputs.to(device), responses.to(device)
+            inputs, responses = inputs.to(device), responses.to(device)
             output = net(inputs.unsqueeze(0))
             
-            var.append(np.corrcoef(responses.numpy(),output.numpy())[0,1]**2)
+            #var.append(np.corrcoef(responses.cpu().numpy(),output.cpu().numpy())[0,1]**2)
+            var.append(r2_score(responses.cpu().numpy().reshape(-1,1),output.cpu().numpy().reshape(-1,1),multioutput='variance_weighted'))
     var = array(var)
     print('Mean: '+str(np.mean(var)))
     return np.mean(var)
@@ -133,6 +142,8 @@ net_opt= BayesianOptimization(train_net,{'lr':(1e-4,1e-1), 'mom':(0.5,0.99)},ver
 net_opt.maximize(n_iter=30,acq="poi",xi=1e-1)
 
 best_params = net_opt.max['params']
+
+import pdb; pdb.set_trace()
 
 net = models.alexnet(pretrained=True)
 num_ft = net.classifier[6].in_features
@@ -178,7 +189,7 @@ with torch.no_grad():
 var = array(var)
 print('Mean: '+str(np.mean(var)))
 
-if var < 0.2:
+if np.mean(var) < 0.2:
     raise Exception('Booooo')
     
 for idx in range(len(test_ims)):
