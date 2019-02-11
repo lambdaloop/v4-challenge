@@ -138,7 +138,7 @@ def train_net(lr,mom):
     return np.mean(var)
 
 
-net_opt= BayesianOptimization(train_net,{'lr':(1e-4,1e-1), 'mom':(0.5,0.99)},verbose=True)
+net_opt= BayesianOptimization(train_net,{'lr':(1e-4,1e2), 'mom':(0.5,0.99)},verbose=True)
 net_opt.maximize(n_iter=30,acq="poi",xi=1e-1)
 
 best_params = net_opt.max['params']
@@ -189,8 +189,6 @@ with torch.no_grad():
 var = array(var)
 print('Mean: '+str(np.mean(var)))
 
-if np.mean(var) < 0.2:
-    raise Exception('Booooo')
     
 for idx in range(len(test_ims)):
 
