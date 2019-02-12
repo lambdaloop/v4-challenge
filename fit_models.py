@@ -22,14 +22,14 @@ features = dict()
 for k in dd.keys():
     features[k] = dd[k]
     
-all_stuff = np.array([])
+all_stuff = []
 for x in features.keys():
-    all_stuff = np.append(all_stuff,features[x].flatten())
+    all_stuff.append(features[x])
 
-features['all_stuff'] = all_stuff
+features['all_stuff'] = np.hstack(all_stuff)
 
 #%%
-models = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
+models = [Lasso(alpha=1000000,selection='random'), Ridge(alpha=100000), ElasticNet(),
           RandomForestRegressor(max_depth=7, n_estimators=100),
           ExtraTreesRegressor(max_depth=7, n_estimators=100)]
 m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
@@ -58,11 +58,8 @@ for neuron_number in trange(1, train.shape[1], ncols=20):
     # print('neuron number:', neuron_number)
     best_r2 = 0
 
-
     model_dict = {}
     for modelnum in trange(len(models), ncols=20):
-        
-        
         # print('model num:', modelnum)
         model = models[modelnum]
         model_params = all_params[modelnum]
@@ -95,14 +92,20 @@ for neuron_number in trange(1, train.shape[1], ncols=20):
             X_full = pca.transform(X_full)
             X_test = pca.transform(X_test)
 
-            fun = train_models_fun(model, X_full, y_full)
+            X_train, X_val, y_train, y_val = train_test_split(X_full, y_full,
+                                                              test_size=0.1, random_state=42)
+            
+            fun = train_models_fun(model, X_train, y_train)
             net_opt = BayesianOptimization(fun,model_params,verbose=False)
             net_opt.maximize(n_iter=30,acq="poi",xi=1e-1)
             
             try:
-                r2_test = net_opt.max['target'];
+                r2_test = net_opt.max['target']
                 best_params = net_opt.max['params']
                 model.set_params(**best_params)
+                model.fit(X_train, y_train)
+                y_pred = model.predict(X_val)
+                r2_test = r2_score(y_val, y_pred)
             except:
                 r2_test = 0
                 print('Val error')
@@ -120,8 +123,6 @@ for neuron_number in trange(1, train.shape[1], ncols=20):
         z.update(best_params)
         model_dict[m_names[modelnum]] = z
         
-       
-    
     neuron_dict[neuron_number] = model_dict
 
 test.to_csv('data/output.csv', index=False)
