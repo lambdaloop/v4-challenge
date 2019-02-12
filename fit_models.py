@@ -21,7 +21,14 @@ dd = np.load('data/features.npz')
 features = dict()
 for k in dd.keys():
     features[k] = dd[k]
+    
+all_stuff = np.array([])
+for x in features.keys():
+    all_stuff = np.append(all_stuff,features[x].flatten())
 
+features['all_stuff'] = all_stuff
+
+#%%
 models = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
           RandomForestRegressor(max_depth=7, n_estimators=100),
           ExtraTreesRegressor(max_depth=7, n_estimators=100)]
