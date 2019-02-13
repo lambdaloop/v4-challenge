@@ -71,7 +71,6 @@ class v4_dataset(Dataset):
 t = transforms.Compose([transforms.Resize(224), transforms.ToTensor()])
 
 dtset = v4_dataset(df_now, im_now,t)
-dtloader = DataLoader(v4_dataset,batch_size=4,num_workers=4)
 #%% set up models
 
 #returns a tuple with outputs at each layer in alexnet (minus fc layers)
@@ -114,9 +113,13 @@ def train_models_fun(model, X_full, y_full):
 #%% Instantiate model, get output for images
     
 net=Alexnet() 
-ft_vec = []
+ft_vec = np.array([])
 
-
+for x in dtset:
+    
+    outputs = net(x['image'].unsqueeze(0))
+    
+    ft_vec = np.append(ft_vec,outputs[-2].detach().numpy().squeeze(0))
 #%% Now fit the data
 n_dict = {}
 for nnn in trange(1,df_now.shape[1],ncols=20):
