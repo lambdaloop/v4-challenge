@@ -169,7 +169,7 @@ for nnn in trange(1,df_now.shape[1],ncols=20):
     best_r2 = 0
     
     model_dict = {}
-    for modelnum in range(len(mods),ncol=20):
+    for modelnum in range(len(mods)):
         
         model = mods[modelnum]
         model_params = all_params[modelnum]
@@ -178,7 +178,7 @@ for nnn in trange(1,df_now.shape[1],ncols=20):
         
         good = ~np.isnan(y_full)
         
-        ytrain = np.array(y_full.iloc[:,good])
+        ytrain = np.array(y_full.loc[good])
         
         for layer in conv_resps.keys():
             xtrain = conv_resps[layer][good,:]
