@@ -138,7 +138,7 @@ c1 = np.delete(c1,0,0); c2 = np.delete(c2,0,0); c3 = np.delete(c3,0,0); c4 = np.
 c1 = c1[:,:,25:29,25:29]; c2 = c2[:,:,11:15, 11:15]; c3 = c3[:,:,5:9,5:9]; c4 = c4[:,:,5:9,5:9]; c5 = c5[:,:,5:9,5:9]; #grab just img center info
 c1 = c1.reshape(551,-1); c2 = c2.reshape(551,-1); c3 = c3.reshape(551,-1); c4 = c4.reshape(551,-1); c5 = c5.reshape(551,-1); #reshape into n samples x nfeatures
 
-conv_resps = {'conv1': c1, 'conv2': c2, 'conv3': c3, 'conv4': c4, 'conv5': c5}
+conv_train = {'conv1': c1, 'conv2': c2, 'conv3': c3, 'conv4': c4, 'conv5': c5}
 
 
 c1 = np.empty(shape=(1,64,55,55)); c2 = np.empty(shape=(1,192,27,27)); c3 = np.empty(shape=(1,384,13,13)); 
@@ -162,6 +162,9 @@ c1 = c1.reshape(50,-1); c2 = c2.reshape(50,-1); c3 = c3.reshape(50,-1); c4 = c4.
 
 conv_test = {'conv1': c1, 'conv2': c2, 'conv3': c3, 'conv4': c4, 'conv5': c5}
 
+np.save('/data/conv_train.npy',conv_train)
+np.save('/data/conv_test.npy',conv_test)
+"""
 #%% Now fit the data
 best_r2 = 0
 n_dict = {}
@@ -169,7 +172,7 @@ for nnn in trange(1,df_now.shape[1],ncols=20):
     best_r2 = 0
     
     model_dict = {}
-    for modelnum in range(len(mods),ncol=20):
+    for modelnum in range(len(mods)):
         
         model = mods[modelnum]
         model_params = all_params[modelnum]
@@ -178,10 +181,10 @@ for nnn in trange(1,df_now.shape[1],ncols=20):
         
         good = ~np.isnan(y_full)
         
-        ytrain = np.array(y_full.iloc[:,good])
+        ytrain = np.array(y_full.loc[good])
         
-        for layer in conv_resps.keys():
-            xtrain = conv_resps[layer][good,:]
+        for layer in conv_train.keys():
+            xtrain = conv_train[layer][good,:]
             xtest = conv_test[layer]
             fun = train_models_fun(model,xtrain,ytrain)
             net_opt = BayesianOptimization(fun,model_params,verbose=0)
@@ -202,3 +205,4 @@ for nnn in trange(1,df_now.shape[1],ncols=20):
                 best_r2 = r2_test
                 
 test.to_csv('data/output.csv',index=False)
+"""
