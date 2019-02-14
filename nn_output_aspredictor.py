@@ -6,12 +6,6 @@ Created on Fri Feb  8 13:07:15 2019
 """
 
 import pandas as pd
-
-"""
-aaa = pd.read_pickle('./model_perf_and_params.pkl')
-
-"""
-#%%
 import warnings 
 import numpy as np
 from numpy import array 
@@ -40,11 +34,11 @@ df_now = pd.read_csv('./data/train.csv')
 im_now = np.load('./data/stim.npy')
 test_ims = im_now[:50,...]
 im_now = im_now[50:,...]#eliminate test images for training
-
+"""
 bad_idcs = pd.isnull(df_now).any(1).nonzero()[0] #return all rows with a nan value
 df_now = df_now.drop(df_now.index[bad_idcs])
 im_now = np.delete(im_now,bad_idcs,axis=0)
-
+"""
 test = pd.read_csv('data/sub.csv')
 
 class v4_dataset(Dataset):
@@ -71,26 +65,36 @@ class v4_dataset(Dataset):
 t = transforms.Compose([transforms.Resize(224), transforms.ToTensor()])
 
 dtset = v4_dataset(df_now, im_now,t)
-dtloader = DataLoader(v4_dataset,batch_size=4,num_workers=4)
+tstset = v4_dataset(df_now[:50],test_ims,t) # just dummy responses; only going to use the images
+
+trainloader = DataLoader(dtset,batch_size=4)
+testloader = DataLoader(tstset,batch_size=4)
 #%% set up models
 
 #returns a tuple with outputs at each layer in alexnet (minus fc layers)
 
-class Alexnet(torch.nn.Module):
+class AlexNet(torch.nn.Module):
     def __init__(self):
-        super(Alexnet,self).__init__()
+        super(AlexNet,self).__init__()
         features = list(models.alexnet(pretrained=True).features)
         self.features = nn.ModuleList(features).eval()
         
     def forward(self,x):
         results = []
         for ii, model in enumerate(self.features):
-            x = model(x)
-            results.append(x)
+            x = model(x); #import pdb; pdb.set_trace()
+            if ii in {0, 3, 6, 8, 10}: #only conv layers
+                results.append(x)
+        
+        """
         an_outputs = namedtuple("AlexNetOutputs",['conv1','relu1','maxpool1',
                                                   'conv2','relu2','maxpool2',
                                                   'conv3','relu3','conv4',
                                                   'relu4','conv5','relu5','maxpool5'])
+        """
+        
+        an_outputs = namedtuple("AlexnetOutputs",['conv1','conv2','conv3','conv4','conv5'])
+        
         return an_outputs(*results)
 
 mods = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
@@ -111,13 +115,55 @@ def train_models_fun(model, X_full, y_full):
     return test_model
 
 
-#%% Instantiate model, get output for images
+#%% Instantiate model, get output for training images
     
-net=Alexnet() 
-ft_vec = []
+net=AlexNet() 
+c1 = np.empty(shape=(1,64,55,55)); c2 = np.empty(shape=(1,192,27,27)); c3 = np.empty(shape=(1,384,13,13)); 
+c4 = np.empty(shape=(1,256,13,13)); c5 = np.empty(shape=(1,256,13,13)); 
+ 
+for i, data in enumerate(trainloader):
+    
+    inputs = data['image']
+    
+    outputs = net(inputs)
+    
+    c1=np.vstack((c1,outputs.conv1.detach().numpy()))
+    c2=np.vstack((c2,outputs.conv2.detach().numpy()))
+    c3=np.vstack((c3,outputs.conv3.detach().numpy()))
+    c4=np.vstack((c4,outputs.conv4.detach().numpy()))
+    c5=np.vstack((c5,outputs.conv5.detach().numpy()))
+    
+    
+c1 = np.delete(c1,0,0); c2 = np.delete(c2,0,0); c3 = np.delete(c3,0,0); c4 = np.delete(c4,0,0); c5 = np.delete(c5,0,0);
+c1 = c1[:,:,25:29,25:29]; c2 = c2[:,:,11:15, 11:15]; c3 = c3[:,:,5:9,5:9]; c4 = c4[:,:,5:9,5:9]; c5 = c5[:,:,5:9,5:9]; #grab just img center info
+c1 = c1.reshape(551,-1); c2 = c2.reshape(551,-1); c3 = c3.reshape(551,-1); c4 = c4.reshape(551,-1); c5 = c5.reshape(551,-1); #reshape into n samples x nfeatures
 
+conv_resps = {'conv1': c1, 'conv2': c2, 'conv3': c3, 'conv4': c4, 'conv5': c5}
+
+
+c1 = np.empty(shape=(1,64,55,55)); c2 = np.empty(shape=(1,192,27,27)); c3 = np.empty(shape=(1,384,13,13)); 
+c4 = np.empty(shape=(1,256,13,13)); c5 = np.empty(shape=(1,256,13,13)); 
+
+for i, data in enumerate(testloader): 
+    
+    inputs = data['image']
+    
+    outputs = net(inputs)
+    
+    c1=np.vstack((c1,outputs.conv1.detach().numpy()))
+    c2=np.vstack((c2,outputs.conv2.detach().numpy()))
+    c3=np.vstack((c3,outputs.conv3.detach().numpy()))
+    c4=np.vstack((c4,outputs.conv4.detach().numpy()))
+    c5=np.vstack((c5,outputs.conv5.detach().numpy()))
+    
+c1 = np.delete(c1,0,0); c2 = np.delete(c2,0,0); c3 = np.delete(c3,0,0); c4 = np.delete(c4,0,0); c5 = np.delete(c5,0,0);
+c1 = c1[:,:,25:29,25:29]; c2 = c2[:,:,11:15, 11:15]; c3 = c3[:,:,5:9,5:9]; c4 = c4[:,:,5:9,5:9]; c5 = c5[:,:,5:9,5:9]; #grab just img center info
+c1 = c1.reshape(50,-1); c2 = c2.reshape(50,-1); c3 = c3.reshape(50,-1); c4 = c4.reshape(50,-1); c5 = c5.reshape(50,-1); #reshape into n samples x nfeatures
+
+conv_test = {'conv1': c1, 'conv2': c2, 'conv3': c3, 'conv4': c4, 'conv5': c5}
 
 #%% Now fit the data
+best_r2 = 0
 n_dict = {}
 for nnn in trange(1,df_now.shape[1],ncols=20):
     best_r2 = 0
@@ -128,3 +174,31 @@ for nnn in trange(1,df_now.shape[1],ncols=20):
         model = mods[modelnum]
         model_params = all_params[modelnum]
         
+        y_full = df_now.iloc[:,nnn]
+        
+        good = ~np.isnan(y_full)
+        
+        ytrain = np.array(y_full.iloc[:,good])
+        
+        for layer in conv_resps.keys():
+            xtrain = conv_resps[layer][good,:]
+            xtest = conv_test[layer]
+            fun = train_models_fun(model,xtrain,ytrain)
+            net_opt = BayesianOptimization(fun,model_params,verbose=0)
+            net_opt.maximize(n_iter=50,acq="poi",xi=1e-1)
+            
+            try:
+                r2_test = net_opt.max['target']
+                best_params = net_opt.max['params']
+                model.set_params(**best_params)
+            except:
+                r2_test = 0
+                print('Val error')
+            
+            if r2_test > best_r2:
+                model.fit(xtrain,ytrain)
+                out = model.predict(xtest)
+                test.iloc[:,nnn] = out
+                best_r2 = r2_test
+                
+test.to_csv('data/output.csv',index=False)
