@@ -97,12 +97,15 @@ class AlexNet(torch.nn.Module):
         
         return an_outputs(*results)
 
-mods = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
-          RandomForestRegressor(max_depth=7, n_estimators=100)] 
-m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
-all_params = [{'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)},
-              {'max_depth': (3, 15)}]
+#mods = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
+#          RandomForestRegressor(max_depth=7, n_estimators=100)] 
+mods = [Lasso(alpha=1)]
+#m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
 
+#all_params = [{'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)},
+ #             {'max_depth': (3, 15)}]
+
+all_params = [{'alpha': (1e-4, 1e2)}]
 def train_models_fun(model, X_full, y_full):
     def test_model(**params):
         model.set_params(**params)
@@ -171,6 +174,8 @@ n_dict = {}
 conv_train = np.load('data/conv_train.npy').flat[0]
 conv_test = np.load('data/conv_test.npy').flat[0]
 
+conv_train.pop('conv1',None)
+
 for nnn in trange(1,df_now.shape[1],ncols=20):
     best_r2 = 0
     
@@ -190,8 +195,8 @@ for nnn in trange(1,df_now.shape[1],ncols=20):
             xtrain = conv_train[layer][good,:]
             xtest = conv_test[layer]
             fun = train_models_fun(model,xtrain,ytrain)
-            net_opt = BayesianOptimization(fun,model_params,verbose=0)
-            net_opt.maximize(n_iter=30,acq="poi",xi=1e-1)
+            net_opt = BayesianOptimization(fun,model_params,verbose=1)
+            net_opt.maximize(n_iter=50,acq="poi",xi=1e-1)
             
             try:
                 r2_test = net_opt.max['target']
@@ -206,6 +211,5 @@ for nnn in trange(1,df_now.shape[1],ncols=20):
                 out = model.predict(xtest)
                 test.iloc[:,nnn] = out
                 best_r2 = r2_test
-            iii += 1
-            print(iii)
+
 test.to_csv('data/output.csv',index=False)
