@@ -110,7 +110,7 @@ def train_models_fun(model, X_full, y_full):
     def test_model(**params):
         model.set_params(**params)
         scores = cross_val_score(model, X_full, y_full,
-                                 cv=ShuffleSplit(n_splits=1, test_size=0.1, random_state=42),
+                                 cv=ShuffleSplit(n_splits=1, test_size=0.15, random_state=42),
                                  scoring=make_scorer(r2_score))
         r2_test = np.mean(scores)
         return r2_test
@@ -196,7 +196,7 @@ for nnn in trange(1,df_now.shape[1],ncols=20):
             xtest = conv_test[layer]
             fun = train_models_fun(model,xtrain,ytrain)
             net_opt = BayesianOptimization(fun,model_params,verbose=1)
-            net_opt.maximize(n_iter=50,acq="poi",xi=1e-1)
+            net_opt.maximize(n_iter=100,acq="poi",xi=1e-1)
             
             try:
                 r2_test = net_opt.max['target']
