@@ -8,21 +8,19 @@ Created on Fri Feb  8 13:07:15 2019
 import pandas as pd
 import warnings 
 import numpy as np
-from numpy import array 
 from bayes_opt import BayesianOptimization
 from sklearn.linear_model import Lasso, Ridge, ElasticNet
-from sklearn.model_selection import train_test_split,cross_val_score, ShuffleSplit
+from sklearn.model_selection import cross_val_score, ShuffleSplit
 from sklearn.metrics import r2_score
 from sklearn.metrics.scorer import make_scorer
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from torchvision import models, transforms
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 from collections import namedtuple
-from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
-from tqdm import tqdm, trange
+from tqdm import trange
+import matplotlib.pyplot as plt
 
 #os.chdir(r'C:\Users\Tony Bigelow\Desktop\Hackathon\v4-challenge')
 
@@ -32,6 +30,8 @@ warnings.simplefilter(action='ignore',category=FutureWarning)
 
 df_now = pd.read_csv('./data/train.csv')
 im_now = np.load('./data/stim.npy')
+im_mean = np.mean(np.mean(im_now,axis=(1,2)),axis=0)
+im_std = np.std(np.std(im_now,axis=(1,2)),axis=0)
 test_ims = im_now[:50,...]
 im_now = im_now[50:,...]#eliminate test images for training
 """
@@ -62,7 +62,7 @@ class v4_dataset(Dataset):
         sample = {'image': img, 'responses': responses}
         return sample
 
-t = transforms.Compose([transforms.Resize(224), transforms.ToTensor()])
+t = transforms.Compose([transforms.Resize(224), transforms.ToTensor(), transforms.Normalize(mean=im_mean, std= im_std)])
 
 dtset = v4_dataset(df_now, im_now,t)
 tstset = v4_dataset(df_now[:50],test_ims,t) # just dummy responses; only going to use the images
@@ -99,13 +99,13 @@ class AlexNet(torch.nn.Module):
 
 #mods = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
 #          RandomForestRegressor(max_depth=7, n_estimators=100)] 
-mods = [Lasso(alpha=1)]
+mods = [Lasso(alpha=1),Ridge(alpha=1)]
 #m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
 
 #all_params = [{'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)},
  #             {'max_depth': (3, 15)}]
 
-all_params = [{'alpha': (1e-4, 1e2)}]
+all_params = [{'alpha': (1e-4, 1e2)},{'alpha': (1e-4, 1e2)}]
 def train_models_fun(model, X_full, y_full):
     def test_model(**params):
         model.set_params(**params)
@@ -118,22 +118,26 @@ def train_models_fun(model, X_full, y_full):
 
 
 #%% Instantiate model, get output for training images
-"""   
+"""  
 net=AlexNet() 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+net.to(device)
+
 c1 = np.empty(shape=(1,64,55,55)); c2 = np.empty(shape=(1,192,27,27)); c3 = np.empty(shape=(1,384,13,13)); 
 c4 = np.empty(shape=(1,256,13,13)); c5 = np.empty(shape=(1,256,13,13)); 
  
 for i, data in enumerate(trainloader):
     
     inputs = data['image']
+    inputs = inputs.to(device)
     
     outputs = net(inputs)
     
-    c1=np.vstack((c1,outputs.conv1.detach().numpy()))
-    c2=np.vstack((c2,outputs.conv2.detach().numpy()))
-    c3=np.vstack((c3,outputs.conv3.detach().numpy()))
-    c4=np.vstack((c4,outputs.conv4.detach().numpy()))
-    c5=np.vstack((c5,outputs.conv5.detach().numpy()))
+    c1=np.vstack((c1,outputs.conv1.cpu().detach().numpy()))
+    c2=np.vstack((c2,outputs.conv2.cpu().detach().numpy()))
+    c3=np.vstack((c3,outputs.conv3.cpu().detach().numpy()))
+    c4=np.vstack((c4,outputs.conv4.cpu().detach().numpy()))
+    c5=np.vstack((c5,outputs.conv5.cpu().detach().numpy()))
     
     
 c1 = np.delete(c1,0,0); c2 = np.delete(c2,0,0); c3 = np.delete(c3,0,0); c4 = np.delete(c4,0,0); c5 = np.delete(c5,0,0);
@@ -146,17 +150,20 @@ conv_train = {'conv1': c1, 'conv2': c2, 'conv3': c3, 'conv4': c4, 'conv5': c5}
 c1 = np.empty(shape=(1,64,55,55)); c2 = np.empty(shape=(1,192,27,27)); c3 = np.empty(shape=(1,384,13,13)); 
 c4 = np.empty(shape=(1,256,13,13)); c5 = np.empty(shape=(1,256,13,13)); 
 
+
+
 for i, data in enumerate(testloader): 
     
     inputs = data['image']
+    inputs=inputs.to(device)
     
     outputs = net(inputs)
     
-    c1=np.vstack((c1,outputs.conv1.detach().numpy()))
-    c2=np.vstack((c2,outputs.conv2.detach().numpy()))
-    c3=np.vstack((c3,outputs.conv3.detach().numpy()))
-    c4=np.vstack((c4,outputs.conv4.detach().numpy()))
-    c5=np.vstack((c5,outputs.conv5.detach().numpy()))
+    c1=np.vstack((c1,outputs.conv1.cpu().detach().numpy()))
+    c2=np.vstack((c2,outputs.conv2.cpu().detach().numpy()))
+    c3=np.vstack((c3,outputs.conv3.cpu().detach().numpy()))
+    c4=np.vstack((c4,outputs.conv4.cpu().detach().numpy()))
+    c5=np.vstack((c5,outputs.conv5.cpu().detach().numpy()))
     
 c1 = np.delete(c1,0,0); c2 = np.delete(c2,0,0); c3 = np.delete(c3,0,0); c4 = np.delete(c4,0,0); c5 = np.delete(c5,0,0);
 c1 = c1[:,:,25:29,25:29]; c2 = c2[:,:,11:15, 11:15]; c3 = c3[:,:,5:9,5:9]; c4 = c4[:,:,5:9,5:9]; c5 = c5[:,:,5:9,5:9]; #grab just img center info
@@ -174,7 +181,6 @@ n_dict = {}
 conv_train = np.load('data/conv_train.npy').flat[0]
 conv_test = np.load('data/conv_test.npy').flat[0]
 
-conv_train.pop('conv1',None)
 
 for nnn in trange(1,df_now.shape[1],ncols=20):
     best_r2 = 0
@@ -198,13 +204,9 @@ for nnn in trange(1,df_now.shape[1],ncols=20):
             net_opt = BayesianOptimization(fun,model_params,verbose=1)
             net_opt.maximize(n_iter=100,acq="poi",xi=1e-1)
             
-            try:
-                r2_test = net_opt.max['target']
-                best_params = net_opt.max['params']
-                model.set_params(**best_params)
-            except:
-                r2_test = 0
-                print('Val error')
+            r2_test = net_opt.max['target']
+            best_params = net_opt.max['params']
+            model.set_params(**best_params)
             
             if r2_test > best_r2:
                 model.fit(xtrain,ytrain)
