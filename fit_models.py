@@ -21,7 +21,7 @@ dd = np.load('data/features.npz')
 features = dict()
 for k in dd.keys():
     features[k] = dd[k]
-    
+
 all_stuff = []
 for x in features.keys():
     all_stuff.append(features[x])
@@ -30,11 +30,11 @@ features['all_stuff'] = np.hstack(all_stuff)
 
 #%%
 models = [Lasso(alpha=1000000,selection='random'), Ridge(alpha=100000), ElasticNet(),
-          RandomForestRegressor(max_depth=7, n_estimators=100),
-          ExtraTreesRegressor(max_depth=7, n_estimators=100)]
-m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
+          RandomForestRegressor(max_depth=7, n_estimators=100)]
+# m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
+m_names = ['Lasso', 'Ridge','ElasticNet','RForest']
 all_params = [{'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)},
-              {'max_depth': (3, 15)}, {'max_depth': (3, 15)}]
+              {'max_depth': (3, 15)}]
 
 
 print(features.keys())
@@ -52,23 +52,19 @@ def train_models_fun(model, X_full, y_full):
     return test_model
 
 
-neuron_dict = {}
+feature_rows = []
 
 for neuron_number in trange(1, train.shape[1], ncols=20):
     # print('neuron number:', neuron_number)
     best_r2 = 0
 
-    model_dict = {}
     for modelnum in trange(len(models), ncols=20):
         # print('model num:', modelnum)
         model = models[modelnum]
         model_params = all_params[modelnum]
-        
-        feature_dict = {}
 
         for feature in tqdm(features.keys(), ncols=20):
-            
-            
+
             ids_train = np.array(train['Id'])
             ids_test = np.array(test['Id'])
 
@@ -94,13 +90,13 @@ for neuron_number in trange(1, train.shape[1], ncols=20):
 
             X_train, X_val, y_train, y_val = train_test_split(X_full, y_full,
                                                               test_size=0.1, random_state=42)
-            
+
             fun = train_models_fun(model, X_train, y_train)
             net_opt = BayesianOptimization(fun,model_params,verbose=False)
             net_opt.maximize(n_iter=30,acq="poi",xi=1e-1)
-            
+
             try:
-                r2_test = net_opt.max['target']
+                # r2_test = net_opt.max['target']
                 best_params = net_opt.max['params']
                 model.set_params(**best_params)
                 model.fit(X_train, y_train)
@@ -110,21 +106,24 @@ for neuron_number in trange(1, train.shape[1], ncols=20):
                 r2_test = 0
                 print('Val error')
             # print('feature: {}, r2: {:.3f}'.format(feature, r2_test))
-            
-            feature_dict[feature] = r2_test
-            
+
+            row = dict()
+            row['neuron'] = train.columns[neuron_number]
+            row['neuron_number'] = neuron_number
+            row['model'] = m_names[modelnum]
+            row['feature'] = feature
+            row['r2'] = r2_test
+            row.update(best_params)
+
+            feature_rows.append(row)
+
             if r2_test > best_r2:
                 model.fit(X_full, y_full)
                 out = model.predict(X_test)
                 test.iloc[:, neuron_number] = out
                 best_r2 = r2_test
 
-        z = feature_dict.copy()
-        z.update(best_params)
-        model_dict[m_names[modelnum]] = z
-        
-    neuron_dict[neuron_number] = model_dict
 
 test.to_csv('data/output.csv', index=False)
-all_results = pd.DataFrame.from_dict(neuron_dict)
-all_results.to_pickle('model_perf_and_params.pkl')
+all_results = pd.DataFrame(feature_rows)
+all_results.to_csv('data/model_perf_and_params.csv')
