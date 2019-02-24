@@ -12,6 +12,7 @@ from bayes_opt import BayesianOptimization
 from sklearn.linear_model import Lasso, Ridge, ElasticNet
 from sklearn.model_selection import cross_val_score, ShuffleSplit
 from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error as rmse
 from sklearn.metrics.scorer import make_scorer
 import torch
 import torch.nn as nn
@@ -19,8 +20,7 @@ from torchvision import models, transforms
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 from collections import namedtuple
-from tqdm import trange
-import matplotlib.pyplot as plt
+from tqdm import trange,tqdm
 
 #os.chdir(r'C:\Users\Tony Bigelow\Desktop\Hackathon\v4-challenge')
 
@@ -99,26 +99,30 @@ class AlexNet(torch.nn.Module):
 
 #mods = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
 #          RandomForestRegressor(max_depth=7, n_estimators=100)] 
-mods = [Lasso(alpha=1),Ridge(alpha=1)]
+mods = [Lasso(alpha=1),Ridge(alpha=1),ElasticNet(alpha=1,l1_ratio=0.5)]
 #m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
 
 #all_params = [{'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)},
  #             {'max_depth': (3, 15)}]
 
-all_params = [{'alpha': (1e-4, 1e2)},{'alpha': (1e-4, 1e2)}]
+all_params = [{'alpha': (1e-4, 1e3)},{'alpha': (1e-4, 1e3)},{'alpha':(1e-4,1e3), 'l1_ratio':(0,1)}]
 def train_models_fun(model, X_full, y_full):
     def test_model(**params):
         model.set_params(**params)
         scores = cross_val_score(model, X_full, y_full,
-                                 cv=ShuffleSplit(n_splits=1, test_size=0.15, random_state=42),
+                                 cv=ShuffleSplit(n_splits=1, test_size=0.10, random_state=42),
                                  scoring=make_scorer(r2_score))
-        r2_test = np.mean(scores)
-        return r2_test
+        r2_now = np.mean(scores)
+        if r2_now < 0:
+            r2_now =0
+            
+        return np.sqrt(r2_now)
+    
     return test_model
 
 
 #%% Instantiate model, get output for training images
-"""  
+""" 
 net=AlexNet() 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 net.to(device)
@@ -141,7 +145,7 @@ for i, data in enumerate(trainloader):
     
     
 c1 = np.delete(c1,0,0); c2 = np.delete(c2,0,0); c3 = np.delete(c3,0,0); c4 = np.delete(c4,0,0); c5 = np.delete(c5,0,0);
-c1 = c1[:,:,25:29,25:29]; c2 = c2[:,:,11:15, 11:15]; c3 = c3[:,:,5:9,5:9]; c4 = c4[:,:,5:9,5:9]; c5 = c5[:,:,5:9,5:9]; #grab just img center info
+c1 = c1[:,:,15:39,15:39]; c2 = c2[:,:,5:20, 5:20]; c3 = c3[:,:,3:11,3:11]; c4 = c4[:,:,3:11,3:11]; c5 = c5[:,:,3:11,3:11]; #grab just img center info
 c1 = c1.reshape(551,-1); c2 = c2.reshape(551,-1); c3 = c3.reshape(551,-1); c4 = c4.reshape(551,-1); c5 = c5.reshape(551,-1); #reshape into n samples x nfeatures
 
 conv_train = {'conv1': c1, 'conv2': c2, 'conv3': c3, 'conv4': c4, 'conv5': c5}
@@ -166,7 +170,7 @@ for i, data in enumerate(testloader):
     c5=np.vstack((c5,outputs.conv5.cpu().detach().numpy()))
     
 c1 = np.delete(c1,0,0); c2 = np.delete(c2,0,0); c3 = np.delete(c3,0,0); c4 = np.delete(c4,0,0); c5 = np.delete(c5,0,0);
-c1 = c1[:,:,25:29,25:29]; c2 = c2[:,:,11:15, 11:15]; c3 = c3[:,:,5:9,5:9]; c4 = c4[:,:,5:9,5:9]; c5 = c5[:,:,5:9,5:9]; #grab just img center info
+c1 = c1[:,:,15:39,15:39]; c2 = c2[:,:,5:20, 5:20]; c3 = c3[:,:,3:11,3:11]; c4 = c4[:,:,3:11,3:11]; c5 = c5[:,:,3:11,3:11]; #grab just img center info
 c1 = c1.reshape(50,-1); c2 = c2.reshape(50,-1); c3 = c3.reshape(50,-1); c4 = c4.reshape(50,-1); c5 = c5.reshape(50,-1); #reshape into n samples x nfeatures
 
 conv_test = {'conv1': c1, 'conv2': c2, 'conv3': c3, 'conv4': c4, 'conv5': c5}
@@ -182,11 +186,11 @@ conv_train = np.load('data/conv_train.npy').flat[0]
 conv_test = np.load('data/conv_test.npy').flat[0]
 
 
-for nnn in trange(1,df_now.shape[1],ncols=20):
+for nnn in trange(df_now.shape[1],ncols=15):
     best_r2 = 0
     
     model_dict = {}
-    for modelnum in range(len(mods)):
+    for modelnum in trange(len(mods),ncols=15):
         
         model = mods[modelnum]
         model_params = all_params[modelnum]
@@ -197,18 +201,20 @@ for nnn in trange(1,df_now.shape[1],ncols=20):
         
         ytrain = np.array(y_full.loc[good])
         iii = 0
-        for layer in conv_train.keys():
+        for layer in tqdm(conv_train.keys(),ncols=15):
             xtrain = conv_train[layer][good,:]
             xtest = conv_test[layer]
             fun = train_models_fun(model,xtrain,ytrain)
             net_opt = BayesianOptimization(fun,model_params,verbose=1)
-            net_opt.maximize(n_iter=100,acq="poi",xi=1e-1)
+            net_opt.maximize(n_iter=25,acq="poi",xi=1e-1)
             
             r2_test = net_opt.max['target']
             best_params = net_opt.max['params']
             model.set_params(**best_params)
             
             if r2_test > best_r2:
+                print('R2: '+str(r2_test))
+                
                 model.fit(xtrain,ytrain)
                 out = model.predict(xtest)
                 test.iloc[:,nnn] = out
