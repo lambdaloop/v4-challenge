@@ -97,18 +97,20 @@ class AlexNet(torch.nn.Module):
         
         return an_outputs(*results)
 
-mods = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
-          RandomForestRegressor(max_depth=7, n_estimators=100),
-          ExtraTreesRegressor(max_depth=7, n_estimators=100)] 
-m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
-all_params = [{'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)},
-              {'max_depth': (3, 15)}, {'max_depth': (3, 15)}]
+#mods = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
+#          RandomForestRegressor(max_depth=7, n_estimators=100)] 
+mods = [Lasso(alpha=1)]
+#m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
 
+#all_params = [{'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)},
+ #             {'max_depth': (3, 15)}]
+
+all_params = [{'alpha': (1e-4, 1e2)}]
 def train_models_fun(model, X_full, y_full):
     def test_model(**params):
         model.set_params(**params)
         scores = cross_val_score(model, X_full, y_full,
-                                 cv=ShuffleSplit(n_splits=1, test_size=0.1, random_state=42),
+                                 cv=ShuffleSplit(n_splits=1, test_size=0.15, random_state=42),
                                  scoring=make_scorer(r2_score))
         r2_test = np.mean(scores)
         return r2_test
@@ -116,7 +118,7 @@ def train_models_fun(model, X_full, y_full):
 
 
 #%% Instantiate model, get output for training images
-    
+"""   
 net=AlexNet() 
 c1 = np.empty(shape=(1,64,55,55)); c2 = np.empty(shape=(1,192,27,27)); c3 = np.empty(shape=(1,384,13,13)); 
 c4 = np.empty(shape=(1,256,13,13)); c5 = np.empty(shape=(1,256,13,13)); 
@@ -162,12 +164,18 @@ c1 = c1.reshape(50,-1); c2 = c2.reshape(50,-1); c3 = c3.reshape(50,-1); c4 = c4.
 
 conv_test = {'conv1': c1, 'conv2': c2, 'conv3': c3, 'conv4': c4, 'conv5': c5}
 
-np.save('/data/conv_train.npy',conv_train)
-np.save('/data/conv_test.npy',conv_test)
+np.save('data/conv_train.npy',conv_train)
+np.save('data/conv_test.npy',conv_test)
 """
 #%% Now fit the data
 best_r2 = 0
 n_dict = {}
+
+conv_train = np.load('data/conv_train.npy').flat[0]
+conv_test = np.load('data/conv_test.npy').flat[0]
+
+conv_train.pop('conv1',None)
+
 for nnn in trange(1,df_now.shape[1],ncols=20):
     best_r2 = 0
     
@@ -182,13 +190,13 @@ for nnn in trange(1,df_now.shape[1],ncols=20):
         good = ~np.isnan(y_full)
         
         ytrain = np.array(y_full.loc[good])
-        
+        iii = 0
         for layer in conv_train.keys():
             xtrain = conv_train[layer][good,:]
             xtest = conv_test[layer]
             fun = train_models_fun(model,xtrain,ytrain)
-            net_opt = BayesianOptimization(fun,model_params,verbose=0)
-            net_opt.maximize(n_iter=50,acq="poi",xi=1e-1)
+            net_opt = BayesianOptimization(fun,model_params,verbose=1)
+            net_opt.maximize(n_iter=100,acq="poi",xi=1e-1)
             
             try:
                 r2_test = net_opt.max['target']
@@ -203,6 +211,5 @@ for nnn in trange(1,df_now.shape[1],ncols=20):
                 out = model.predict(xtest)
                 test.iloc[:,nnn] = out
                 best_r2 = r2_test
-                
+
 test.to_csv('data/output.csv',index=False)
-"""
