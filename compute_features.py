@@ -2,7 +2,7 @@
 
 import numpy as np
 import pywt
-from scipy.stats import kurtosis, skew
+from scipy.stats import kurtosis, skew, moment
 import cv2 as cv
 from tqdm import trange
 from collections import defaultdict
@@ -34,18 +34,28 @@ def wavelet_features(img, wavelet='sym4'):
         features.extend([cA, cH, cV, cD])
     return np.hstack(features).flatten()
 
-def calc_stats(image):
+def calc_stats(img, colorspace=None):
+    if colorspace == 'LAB':
+        image = cv.cvtColor(img, cv.COLOR_RGB2LAB)
+    else:
+        image = img
+
     results = []
 
     for j in range(3):
-        results.append(np.mean(image[:,:,j]))
-        results.append(np.std(image[:,:,j]))
-        results.append(kurtosis(image[:,:,j],axis=None))
-        results.append(skew(image[:,:,j],axis=None))
-        im = image[20:60,20:60,j]
+        im = image[:, :, j]
         results.append(np.min(im))
         results.append(np.max(im))
-        results.append(np.sqrt(np.mean(image[:,:,j]**2)))
+        results.append(np.sqrt(np.mean(np.square(im))))
+
+        results.append(np.mean(im))
+        results.append(np.std(im))
+        if np.abs(np.std(im)) < 1e-12:
+            im_std = im - np.mean(im)
+        else:
+            im_std = (im - np.mean(im)) / np.std(im)
+        for mnum in range(3, 7):
+            results.append(moment(im_std, moment=mnum, axis=None))
 
     return np.array(results)
 
@@ -55,7 +65,8 @@ FEATURE_FUNCTIONS = {
     'LAB': (colorspace_image, 'LAB'),
     'fourier': fourier_features,
     'gabor': (wavelet_features, 'sym4'),
-    'stats': calc_stats
+    'stats': calc_stats,
+    'stats_LAB': (calc_stats, 'LAB')
 }
 
 def get_features_image(img):
@@ -75,7 +86,7 @@ def compute_features():
     out = defaultdict(list)
     for i in trange(images.shape[0]):
         img = images[i]
-        features = get_features_image(img)
+        features = get_features_image(img[20:-20,20:-20])
         for k, v in features.items():
             out[k].append(v)
     for k,v in out.items():
