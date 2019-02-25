@@ -9,10 +9,10 @@ import pandas as pd
 import warnings 
 import numpy as np
 from bayes_opt import BayesianOptimization
-from sklearn.linear_model import Lasso, Ridge, ElasticNet
+from sklearn.linear_model import ElasticNet
 from sklearn.model_selection import cross_val_score, ShuffleSplit
 from sklearn.metrics import r2_score
-from sklearn.metrics import mean_squared_error as rmse
+from sklearn.ensemble import ExtraTreesRegressor
 from sklearn.metrics.scorer import make_scorer
 import torch
 import torch.nn as nn
@@ -99,13 +99,13 @@ class AlexNet(torch.nn.Module):
 
 #mods = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
 #          RandomForestRegressor(max_depth=7, n_estimators=100)] 
-mods = [Lasso(alpha=1),Ridge(alpha=1),ElasticNet(alpha=1,l1_ratio=0.5)]
+mods = [ElasticNet(alpha=1,l1_ratio=0.5),ExtraTreesRegressor(max_depth=15,n_estimators=100,n_jobs=16)]
 #m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
 
 #all_params = [{'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)},
  #             {'max_depth': (3, 15)}]
 
-all_params = [{'alpha': (1e-4, 1e3)},{'alpha': (1e-4, 1e3)},{'alpha':(1e-4,1e3), 'l1_ratio':(0,1)}]
+all_params = [{'alpha':(1e-4,1e3), 'l1_ratio':(0,1)},{'max_depth': (5,30), 'n_estimators': (20,400)}]
 def train_models_fun(model, X_full, y_full):
     def test_model(**params):
         model.set_params(**params)
@@ -122,8 +122,15 @@ def train_models_fun(model, X_full, y_full):
 
 
 #%% Instantiate model, get output for training images
-""" 
-net=AlexNet() 
+"""
+#net=AlexNet() 
+net = models.resnet18(pretrained=True)
+res18_conv = nn.Sequential(*list(net.children())[:-2])
+
+for param in res18_conv.parameters():
+    param.requires_grad=False
+    
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 net.to(device)
 
@@ -179,17 +186,21 @@ np.save('data/conv_train.npy',conv_train)
 np.save('data/conv_test.npy',conv_test)
 """
 #%% Now fit the data
+
+
 best_r2 = 0
-n_dict = {}
 
 conv_train = np.load('data/conv_train.npy').flat[0]
 conv_test = np.load('data/conv_test.npy').flat[0]
 
+conv_train.pop('conv1')
+conv_test.pop('conv1')
 
-for nnn in trange(df_now.shape[1],ncols=15):
+results = dict()
+
+for nnn in trange(1,df_now.shape[1],ncols=15):
     best_r2 = 0
     
-    model_dict = {}
     for modelnum in trange(len(mods),ncols=15):
         
         model = mods[modelnum]
@@ -200,21 +211,20 @@ for nnn in trange(df_now.shape[1],ncols=15):
         good = ~np.isnan(y_full)
         
         ytrain = np.array(y_full.loc[good])
-        iii = 0
+        
         for layer in tqdm(conv_train.keys(),ncols=15):
             xtrain = conv_train[layer][good,:]
             xtest = conv_test[layer]
             fun = train_models_fun(model,xtrain,ytrain)
-            net_opt = BayesianOptimization(fun,model_params,verbose=1)
-            net_opt.maximize(n_iter=25,acq="poi",xi=1e-1)
+            net_opt = BayesianOptimization(fun,model_params,verbose=0)
+            net_opt.maximize(n_iter=50,acq="poi",xi=1e-1)
             
             r2_test = net_opt.max['target']
             best_params = net_opt.max['params']
             model.set_params(**best_params)
             
             if r2_test > best_r2:
-                print('R2: '+str(r2_test))
-                
+                results[model+'_'+layer] = r2_test
                 model.fit(xtrain,ytrain)
                 out = model.predict(xtest)
                 test.iloc[:,nnn] = out
