@@ -97,6 +97,32 @@ class AlexNet(torch.nn.Module):
         
         return an_outputs(*results)
 
+class VGG(torch.nn.Module):
+    def __init__(self):
+        super(VGG,self).__init__()
+        features = list(models.vgg16(pretrained=True).features)
+        self.features = nn.ModuleList(features).eval()
+        
+    def forward(self,x):
+        results = []
+        out_dict = []; count = 1
+        for ii, model in enumerate(self.features):
+            x = model(x); #import pdb; pdb.set_trace()
+            if type(model) == nn.modules.conv.Conv2d: #only conv layers
+                out_dict.append('conv'+str(count)); count += 1
+                results.append(x)
+        
+        """
+        an_outputs = namedtuple("AlexNetOutputs",['conv1','relu1','maxpool1',
+                                                  'conv2','relu2','maxpool2',
+                                                  'conv3','relu3','conv4',
+                                                  'relu4','conv5','relu5','maxpool5'])
+        """
+        
+        an_outputs = namedtuple("VGGOutputs",out_dict)
+        
+        return an_outputs(*results)
+    
 #mods = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
 #          RandomForestRegressor(max_depth=7, n_estimators=100)] 
 mods = [ElasticNet(alpha=1,l1_ratio=0.5),ExtraTreesRegressor(max_depth=15,n_estimators=100,n_jobs=16)]
@@ -121,7 +147,50 @@ def train_models_fun(model, X_full, y_full):
     return test_model
 
 
-#%% Instantiate model, get output for training images
+#%% Instantiate model, get output for training imagesj
+    
+net = VGG()
+net.eval()
+
+cresps = dict() 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+net.to(device)
+
+conv_resp = dict()
+
+for i, data in enumerate(trainloader):
+    
+    inputs = data['image']
+    inputs = inputs.to(device)
+    outputs = net(inputs)
+    
+    if i == 0:
+        for j, fld in enumerate(outputs._fields):
+            conv_resp[fld] = outputs[j].cpu().detach().numpy()
+    else:
+        for j, fld in enumerate(outputs._fields):
+            conv_resp[fld] = np.vstack((conv_resp[fld],outputs[j].cpu().detach().numpy()))
+            
+
+conv_test = dict()
+
+for i, data in enumerate(testloader):
+    
+    inputs = data['image']
+    inputs = inputs.to(device)
+    outputs = net(inputs)
+    
+    if i == 0:
+        for j, fld in enumerate(outputs._fields):
+            conv_test[fld] = outputs[j].cpu().detach().numpy()
+            
+    else:
+        for j, fld in enumerate(outputs._fields):
+            conv_test[fld] = np.vstack((conv_test[fld],outputs[j].cpu().detach().numpy()))
+            
+np.save('data/vgg_conv_train.npy',conv_resp)
+np.save('data/vgg_conv_test.npy',conv_test)
+
 """
 #net=AlexNet() 
 net = models.resnet18(pretrained=True)
@@ -140,6 +209,7 @@ c4 = np.empty(shape=(1,256,13,13)); c5 = np.empty(shape=(1,256,13,13));
 for i, data in enumerate(trainloader):
     
     inputs = data['image']
+    
     inputs = inputs.to(device)
     
     outputs = net(inputs)
@@ -186,7 +256,7 @@ np.save('data/conv_train.npy',conv_train)
 np.save('data/conv_test.npy',conv_test)
 """
 #%% Now fit the data
-
+"""
 
 best_r2 = 0
 
@@ -231,3 +301,4 @@ for nnn in trange(1,df_now.shape[1],ncols=15):
                 best_r2 = r2_test
 
 test.to_csv('data/output.csv',index=False)
+"""
