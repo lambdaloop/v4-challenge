@@ -108,7 +108,7 @@ class VGG(torch.nn.Module):
         out_dict = []; count = 1
         for ii, model in enumerate(self.features):
             x = model(x); #import pdb; pdb.set_trace()
-            if type(model) == nn.modules.conv.Conv2d: #only conv layers
+            if type(model) == nn.modules.conv.Conv2d and ii >7: #only conv layers
                 out_dict.append('conv'+str(count)); count += 1
                 results.append(x)
         
@@ -125,13 +125,12 @@ class VGG(torch.nn.Module):
     
 #mods = [Lasso(alpha=1000000), Ridge(alpha=100000), ElasticNet(),
 #          RandomForestRegressor(max_depth=7, n_estimators=100)] 
-mods = [ElasticNet(alpha=1,l1_ratio=0.5),ExtraTreesRegressor(max_depth=15,n_estimators=100,n_jobs=16)]
+mods = [ElasticNet(alpha=1,l1_ratio=0.5)]
 #m_names = ['Lasso', 'Ridge','ElasticNet','RForest','ETrees']
 
-#all_params = [{'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)}, {'alpha': (1e-2, 1e2)},
- #             {'max_depth': (3, 15)}]
+all_params = [{'alpha': (1e-2, 1e2), 'l1_ratio': (0,1)}]
 
-all_params = [{'alpha':(1e-4,1e3), 'l1_ratio':(0,1)},{'max_depth': (5,30), 'n_estimators': (20,400)}]
+#all_params = [{'alpha':(1e-4,1e3), 'l1_ratio':(0,1)},{'max_depth': (5,30), 'n_estimators': (20,400)}]
 def train_models_fun(model, X_full, y_full):
     def test_model(**params):
         model.set_params(**params)
@@ -148,7 +147,8 @@ def train_models_fun(model, X_full, y_full):
 
 
 #%% Instantiate model, get output for training imagesj
-    
+
+
 net = VGG()
 net.eval()
 
@@ -156,7 +156,7 @@ cresps = dict()
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 net.to(device)
 
-conv_resp = dict()
+conv_train = dict()
 
 for i, data in enumerate(trainloader):
     
@@ -166,11 +166,12 @@ for i, data in enumerate(trainloader):
     
     if i == 0:
         for j, fld in enumerate(outputs._fields):
-            conv_resp[fld] = outputs[j].cpu().detach().numpy()
+            conv_train[fld] = outputs[j].cpu().detach().numpy()
     else:
         for j, fld in enumerate(outputs._fields):
-            conv_resp[fld] = np.vstack((conv_resp[fld],outputs[j].cpu().detach().numpy()))
+            conv_train[fld] = np.vstack((conv_train[fld],outputs[j].cpu().detach().numpy()))
             
+    print('{}% done with train examples'.format((i+1)*100/len(trainloader)))
 
 conv_test = dict()
 
@@ -188,8 +189,9 @@ for i, data in enumerate(testloader):
         for j, fld in enumerate(outputs._fields):
             conv_test[fld] = np.vstack((conv_test[fld],outputs[j].cpu().detach().numpy()))
             
-np.save('data/vgg_conv_train.npy',conv_resp)
-np.save('data/vgg_conv_test.npy',conv_test)
+            
+    print('{}% done with test examples'.format((i+1)*100/len(testloader)))
+    
 
 """
 #net=AlexNet() 
@@ -256,15 +258,9 @@ np.save('data/conv_train.npy',conv_train)
 np.save('data/conv_test.npy',conv_test)
 """
 #%% Now fit the data
-"""
+
 
 best_r2 = 0
-
-conv_train = np.load('data/conv_train.npy').flat[0]
-conv_test = np.load('data/conv_test.npy').flat[0]
-
-conv_train.pop('conv1')
-conv_test.pop('conv1')
 
 results = dict()
 
@@ -283,8 +279,8 @@ for nnn in trange(1,df_now.shape[1],ncols=15):
         ytrain = np.array(y_full.loc[good])
         
         for layer in tqdm(conv_train.keys(),ncols=15):
-            xtrain = conv_train[layer][good,:]
-            xtest = conv_test[layer]
+            xtrain = conv_train[layer][good,:].flatten().reshape(551,-1)
+            xtest = conv_test[layer].flatten().reshape(50,-1)
             fun = train_models_fun(model,xtrain,ytrain)
             net_opt = BayesianOptimization(fun,model_params,verbose=0)
             net_opt.maximize(n_iter=50,acq="poi",xi=1e-1)
@@ -301,4 +297,4 @@ for nnn in trange(1,df_now.shape[1],ncols=15):
                 best_r2 = r2_test
 
 test.to_csv('data/output.csv',index=False)
-"""
+
