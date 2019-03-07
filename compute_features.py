@@ -11,11 +11,19 @@ from bayes_opt import BayesianOptimization
 def raw_pixels(image):
     return image.flatten()
 
+def get_edges(im):
+    dx = cv.Sobel(im, cv.CV_64F, 1, 0, ksize=3)
+    dy = cv.Sobel(im, cv.CV_64F, 0, 1, ksize=3)
+    absr = np.abs(dx + dy*1j)
+    return absr
+
 def colorspace_image(image, colorspace='LAB'):
     if colorspace == 'LAB':
         out = cv.cvtColor(image, cv.COLOR_RGB2LAB)
     elif colorspace == 'HSV':
         out = cv.cvtColor(image, cv.COLOR_RGB2HSV)
+    elif colorspace == 'edges':
+        image = get_edges(img)
     else:
         out = image
 
@@ -33,10 +41,15 @@ def wavelet_features(img, wavelet='sym4'):
         cA, (cH, cV, cD) = pywt.dwt2(img[:, :, i], 'sym4')
         features.extend([cA, cH, cV, cD])
     return np.hstack(features).flatten()
+    
 
 def calc_stats(img, colorspace=None):
     if colorspace == 'LAB':
         image = cv.cvtColor(img, cv.COLOR_RGB2LAB)
+    elif colorspace == 'HSV':
+        image = cv.cvtColor(img, cv.COLOR_RGB2HSV)
+    elif colorspace == 'edges':
+        image = get_edges(img)
     else:
         image = img
 
@@ -54,7 +67,7 @@ def calc_stats(img, colorspace=None):
             im_std = im - np.mean(im)
         else:
             im_std = (im - np.mean(im)) / np.std(im)
-        for mnum in range(3, 7):
+        for mnum in range(3, 8):
             results.append(moment(im_std, moment=mnum, axis=None))
 
     return np.array(results)
@@ -66,7 +79,9 @@ FEATURE_FUNCTIONS = {
     'fourier': fourier_features,
     'gabor': (wavelet_features, 'sym4'),
     'stats': calc_stats,
-    'stats_LAB': (calc_stats, 'LAB')
+    'stats_LAB': (calc_stats, 'LAB'),
+    'stats_HSV': (calc_stats, 'HSV'),
+    'stats_edges': (calc_stats, 'edges')
 }
 
 def get_features_image(img):
