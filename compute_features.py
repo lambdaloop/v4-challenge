@@ -23,7 +23,7 @@ def colorspace_image(image, colorspace='LAB'):
     elif colorspace == 'HSV':
         out = cv.cvtColor(image, cv.COLOR_RGB2HSV)
     elif colorspace == 'edges':
-        image = get_edges(img)
+        out = get_edges(image)
     else:
         out = image
 
@@ -76,6 +76,7 @@ def calc_stats(img, colorspace=None):
 FEATURE_FUNCTIONS = {
     'raw': raw_pixels,
     'LAB': (colorspace_image, 'LAB'),
+    'edges': (colorspace_image, 'edges'),
     'fourier': fourier_features,
     'gabor': (wavelet_features, 'sym4'),
     'stats': calc_stats,
