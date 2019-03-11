@@ -3,3 +3,4 @@
 train_resnet_neural_data.py
 train_alexnet_neural_data.py
 .ipynb_checkpoints
+nn_output_aspredictor.py
