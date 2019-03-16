@@ -1,36 +1,8 @@
+# UW V4 Neural Challenge
 
-# Features computed
+This is the repository for Team Rocket's solution to the [UW Neural Data Challenge](https://www.kaggle.com/c/uwndc19), which scored 3rd place on the private leaderboard.
 
-- Raw pixels (RGB, grayscale)
-- Pixels in colorspace (HSV, ??)
-- Wavelet transform
-  - Gabor
-  - Gaussian?
-- Laplace pyramid
-- Fourier transform
-- SIFT features
-- Statistical features
-  - Average deviation of pixel values.
-  - Average of pixel values.
-  - Kurtosis of pixel values
-  - Minimum pixel value.
-  - Maximum pixel value
-  - Root mean squared of pixel values.
-  - Standard deviation of pixel values
-  - Skewness of pixel values
-- PCA features
+The code for fitting the solution, with annotations, may be found at the notebook [here](./notebooks/fit neuron responses final.ipynb
+).
 
-# Models
-- Linear regression [normalize]
-- Regularized regressions
-  - Lasso [Params: alpha, tol, normalize, max_iter]
-  - Ridge [Params: alpha, tol, normalize]
-  - Elastic Net [Params: alpha, l1_ratio,max_iter,tol,normalize]
-- SVM [
-- Neural Nets
-  - Small convolutional designer net
-  - Small fully connected designer net
-  - AlexNet
-  - ResNet
-- K-nearest neighbors
-- Random forest
+Some exploration of the features that we are fitting and what it could mean for V4 may be found at [this notebook](./notebooks/exploring model fits.ipynb).
